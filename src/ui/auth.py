@@ -32,7 +32,7 @@ _FIELD_VALUES_JS = '''(e) => {
     return;
   }
   if (error) error.textContent = 'Enviando…';
-  emit(values);
+  emit(...values);
 }'''
 
 
@@ -205,9 +205,12 @@ def register_page(next_path: str | None = None) -> None:
 
     async def register(event=None) -> None:
         typed = list(getattr(event, 'args', None) or [])
-        typed_user = typed[0] if len(typed) > 0 and typed[0] is not None else username.value
-        typed_password = typed[1] if len(typed) > 1 and typed[1] is not None else password.value
-        typed_confirm = typed[2] if len(typed) > 2 and typed[2] is not None else confirm.value
+        if len(typed) == 1 and isinstance(typed[0], (list, tuple)):
+            typed = list(typed[0])
+        typed_user = typed[0] if len(typed) > 0 and isinstance(typed[0], str) else username.value
+        typed_password = typed[1] if len(typed) > 1 and isinstance(typed[1], str) else password.value
+        typed_confirm = typed[2] if len(typed) > 2 and isinstance(typed[2], str) else confirm.value
+        logger.info('Register attempt for %s', typed_user if isinstance(typed_user, str) else '')
         form_error.set_text('')
         submit.props('loading disable')
         try:
