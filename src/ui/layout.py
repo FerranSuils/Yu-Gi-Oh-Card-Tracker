@@ -1,23 +1,35 @@
 from nicegui import app, ui
 
+from src.core.persistence import persistence
 from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY
 from src.ui.theme import apply_theme
 
+# Routes the shell must keep reachable. Labels follow the desk, not the old drawer.
 NAV_ITEMS = [
-    ('Dashboard', '/'),
-    ('Collection', '/collection'),
-    ('Storage', '/storage'),
-    ('Browse Sets', '/sets'),
-    ('Deck Builder', '/decks'),
-    ('Bulk Add', '/bulk_add'),
-    ('Scan Cards', '/scan'),
-    ('Import Tools', '/import'),
-    ('Edit Card DB', '/db_editor'),
+    ('Resumen', '/'),
+    ('Colección', '/collection'),
+    ('Almacén', '/storage'),
+    ('Sets', '/sets'),
+    ('Mazos', '/decks'),
+    ('Entrada', '/bulk_add'),
+    ('Escanear', '/scan'),
+    ('Importar', '/import'),
+    ('Base de cartas', '/db_editor'),
 ]
+
+PRIMARY_ROUTES = ['/collection', '/storage', '/decks', '/sets', '/bulk_add', '/scan']
+PHONE_ROUTES = ['/collection', '/scan', '/decks', '/storage']
+
+
+def _display_name(filename: str) -> str:
+    for suffix in ('.json', '.yaml', '.yml'):
+        if filename.endswith(suffix):
+            return filename[: -len(suffix)]
+    return filename
 
 
 def create_layout(content_function):
-    """Wrap a protected page in the standard navigation and header."""
+    """Top bar and mode row. The drawer is gone; every route stays one click away."""
     apply_theme()
 
     try:
@@ -30,38 +42,67 @@ def create_layout(content_function):
         app.storage.user.pop(AUTH_REVISION_KEY, None)
         ui.navigate.to('/login')
 
-    def nav_row(text: str, target: str | None = None, on_click=None, active: bool = False):
-        row = ui.element('div').classes('oy-navrow w-full' + (' active' if active else ''))
-        if on_click is None and target is not None:
-            on_click = lambda target=target: ui.navigate.to(target)  # noqa: E731
-        if on_click is not None:
-            row.on('click', on_click)
-        with row:
-            if active:
-                ui.element('span').classes('oy-dot')
-            ui.label(text)
-        return row
+    def go(target: str):
+        ui.navigate.to(target)
 
-    with ui.left_drawer(value=True, bordered=False).props(
-        'breakpoint=1023 :width="234" show-if-above'
-    ) as left_drawer:
-        with ui.column().classes('h-full w-full gap-6 px-2 py-5'):
-            ui.label('OpenYuGi').classes('oy-logo px-3')
+    nav_by_route = dict((route, label) for label, route in NAV_ITEMS)
+    try:
+        saved = persistence.load_ui_state()
+        collections = persistence.list_collections()
+    except Exception:
+        saved = {}
+        collections = []
+    selected = saved.get('collection_selected_file')
+    if selected not in collections:
+        selected = collections[0] if collections else None
 
-            with ui.column().classes('w-full gap-0.5'):
-                ui.label('NAVIGATION').classes('oy-navlabel mb-1')
-                for text, target in NAV_ITEMS:
-                    nav_row(text, target, active=current_path == target)
+    def select_collection(filename: str) -> None:
+        persistence.save_ui_state({'collection_selected_file': filename})
+        ui.navigate.to(current_path or '/collection')
 
-            with ui.column().classes('w-full gap-0.5 mt-auto pt-4 border-t border-white/10'):
-                ui.label('SETTINGS').classes('oy-navlabel mb-1')
-                nav_row('Configuration', '/settings', active=current_path == '/settings')
-                nav_row('Log out', on_click=logout)
+    def submit_search() -> None:
+        persistence.save_ui_state({'collection_search_text': search.value or ''})
+        if current_path == '/collection':
+            ui.navigate.reload()
+        else:
+            ui.navigate.to('/collection')
 
-    # Floating drawer toggle for small screens (no top bar on desktop)
-    ui.button(icon='menu', on_click=left_drawer.toggle).props('flat round').classes(
-        'lg:hidden fixed top-2 left-2 z-50 bg-black/40 text-white'
-    )
+    with ui.column().classes('w-full gap-0'):
+        with ui.row().classes('oy-topbar w-full items-center gap-4 px-4 lg:px-6 py-2 no-wrap'):
+            ui.label('OpenYuGi').classes('oy-wordmark').on('click', lambda: go('/collection'))
 
-    with ui.column().classes('w-full items-start px-4 py-5 lg:px-8 lg:py-7'):
-        content_function()
+            with ui.row().classes('items-center gap-4 oy-desktop-only'):
+                for filename in collections[:4]:
+                    active = filename == selected
+                    ui.label(_display_name(filename)).classes(
+                        'oy-collection-tab' + (' active' if active else '')
+                    ).on('click', lambda filename=filename: select_collection(filename))
+
+            search = ui.input(placeholder='Nombre, código o passcode').props(
+                'dense borderless'
+            ).classes('oy-search flex-grow max-w-md')
+            search.on('keydown.enter', submit_search)
+
+            ui.space()
+            with ui.button('Más', icon='expand_more').props('flat dense no-caps color=primary'):
+                with ui.menu():
+                    for route in ('/', '/import', '/db_editor', '/settings'):
+                        label = 'Ajustes' if route == '/settings' else nav_by_route.get(route, route)
+                        ui.menu_item(label, on_click=lambda route=route: go(route))
+                    ui.separator()
+                    ui.menu_item('Salir', on_click=logout)
+
+        with ui.row().classes('oy-modebar w-full items-center gap-6 px-4 lg:px-6 flex-wrap oy-desktop-only'):
+            for route in PRIMARY_ROUTES:
+                ui.label(nav_by_route[route]).classes(
+                    'oy-mode' + (' active' if current_path == route else '')
+                ).on('click', lambda route=route: go(route))
+
+        with ui.column().classes('oy-page w-full items-start px-4 py-4 lg:px-6'):
+            content_function()
+
+    with ui.row().classes('oy-phone-nav w-full items-center justify-around py-3'):
+        for route in PHONE_ROUTES:
+            ui.label(nav_by_route[route]).classes(
+                'oy-mode' + (' active' if current_path == route else '')
+            ).on('click', lambda route=route: go(route))

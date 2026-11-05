@@ -1,13 +1,14 @@
 from nicegui import ui
 
-# Shared chart palette (purple-first, matches the editorial theme)
+# Shared chart palette for the paper desk. Stamp, moss, brass, and ink
+# stay distinguishable on #F3EDE2 without a purple gradient.
 CHART_COLORS = [
-    '#cba6f7', '#8a5ce8', '#89b4fa', '#4d6be8', '#f9e2af',
-    '#6fcf7c', '#f38ba8', '#e8b34d', '#a79fc0', '#74c7ec',
+    '#9c2f24', '#2c5a42', '#8a6830', '#1e1a15', '#c46a3a',
+    '#5c554b', '#6e8f78', '#b23a2f', '#3e4a44', '#d3c9b8',
 ]
 
 METRIC_VALUE_CLASSES = {
-    'primary': 'text-white',
+    'primary': 'oy-text-ink',
     'secondary': 'oy-text-accent',
     'accent': 'oy-text-blue',
     'info': 'oy-text-blue',
@@ -24,52 +25,102 @@ METRIC_VALUE_CLASSES = {
 TILE_GRID_COLUMNS = 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
 
 GLOBAL_CSS = """
+<meta name="description" content="OpenYuGi cataloga cartas físicas de Yu-Gi-Oh: set, rareza, idioma, estado y el binder donde están. Corre en tu ordenador, sin cuenta en la nube.">
 <style>
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/fraunces-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Fraunces";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/fraunces-400i.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/source-sans-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/source-sans-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/source-sans-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/plex-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/plex-500.woff2") format("woff2");
+}
 :root {
-  --oy-bg: #0a0912;
-  --oy-surface: rgba(255,255,255,.035);
-  --oy-surface-2: rgba(255,255,255,.06);
-  --oy-border: rgba(255,255,255,.08);
-  --oy-border-soft: rgba(255,255,255,.07);
-  --oy-text: #f5f2fb;
-  --oy-body-text: #c9c1de;
-  --oy-muted: #8f89a3;
-  --oy-faint: #726d84;
-  --oy-soft: #a79fc0;
-  --oy-placeholder: #4c465e;
-  --oy-accent: #cba6f7;
-  --oy-accent-deep: #8a5ce8;
-  --oy-blue: #89b4fa;
-  --oy-green: #6fcf7c;
-  --oy-red: #f38ba8;
-  --oy-yellow: #f9e2af;
-  --oy-gold: #e8b34d;
-  --oy-ink: #14101d;
-  --oy-font-display: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --oy-font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --oy-font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --oy-bg: #f3ede2;
+  --oy-surface: #fbf7f0;
+  --oy-surface-2: #e6ddcc;
+  --oy-border: #d3c9b8;
+  --oy-border-soft: #e4dccb;
+  --oy-text: #1e1a15;
+  --oy-body-text: #3a342c;
+  --oy-muted: #5c554b;
+  --oy-faint: #7a7268;
+  --oy-soft: #5c554b;
+  --oy-placeholder: #8a8174;
+  --oy-accent: #9c2f24;
+  --oy-accent-deep: #7d261d;
+  --oy-blue: #2c5a42;
+  --oy-green: #2c5a42;
+  --oy-red: #9c2f24;
+  --oy-yellow: #8a6830;
+  --oy-gold: #8a6830;
+  --oy-ink: #fbf7f0;
+  --oy-font-display: "Fraunces", "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+  --oy-font-body: "Source Sans 3", "Segoe UI", "Helvetica Neue", sans-serif;
+  --oy-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
 /* ---------- Base canvas ---------- */
-body, body.body--dark {
-  background: radial-gradient(1100px 560px at 88% -8%, #2a1d42 0%, #0a0912 55%) fixed var(--oy-bg) !important;
+body, body.body--dark, body.body--light {
+  background: var(--oy-bg) !important;
   font-family: var(--oy-font-body);
   color: var(--oy-body-text);
 }
 .q-layout, .q-page-container, .q-page { background: transparent !important; }
 
 a { color: var(--oy-accent); }
-a:hover { color: #e6d9fb; }
+a:hover { color: var(--oy-accent-deep); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.14);
-  border-radius: 999px;
+  background: #c9bfae;
+  border-radius: 2px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,.25); }
+::-webkit-scrollbar-thumb:hover { background-color: #8a8174; }
 
 /* ---------- Typography ---------- */
 .text-h3, .text-h4, .text-h5 {
@@ -124,14 +175,14 @@ a:hover { color: #e6d9fb; }
 .q-card, .q-card--dark {
   background: var(--oy-surface);
   border: 1px solid var(--oy-border);
-  border-radius: 14px;
+  border-radius: 2px;
   box-shadow: none;
   color: var(--oy-body-text);
 }
 .oy-card {
   background: var(--oy-surface);
   border: 1px solid var(--oy-border);
-  border-radius: 14px;
+  border-radius: 2px;
 }
 .collection-card { overflow: hidden; border-radius: 10px; }
 
@@ -178,7 +229,7 @@ a:hover { color: #e6d9fb; }
 .oy-add-storage:hover .oy-add-storage-icon { color: var(--oy-accent) !important; }
 .oy-add-storage:hover .oy-add-storage-label { color: var(--oy-text) !important; }
 
-.q-separator { background: rgba(255,255,255,.08) !important; }
+.q-separator { background: var(--oy-border) !important; }
 
 /* ---------- Buttons ---------- */
 .q-btn {
@@ -187,12 +238,14 @@ a:hover { color: #e6d9fb; }
   letter-spacing: .2px;
   text-transform: none;
 }
-.q-btn--rectangle { border-radius: 999px; }
+.q-btn--rectangle { border-radius: 2px; }
+.text-white { color: var(--oy-text) !important; }
+.oy-text-ink { color: var(--oy-text) !important; }
 .q-btn.bg-secondary, .q-btn.bg-accent,
 .q-btn.bg-positive, .q-btn.bg-negative, .q-btn.bg-info, .q-btn.bg-warning {
   color: var(--oy-ink) !important;
 }
-.q-btn.bg-primary { color: var(--oy-text) !important; }
+.q-btn.bg-primary { color: var(--oy-ink) !important; }
 .q-btn.bg-green { background: var(--oy-green) !important; color: var(--oy-ink) !important; }
 .q-btn.bg-red { background: var(--oy-red) !important; color: var(--oy-ink) !important; }
 .q-btn.bg-orange { background: var(--oy-gold) !important; color: var(--oy-ink) !important; }
@@ -227,8 +280,8 @@ a:hover { color: #e6d9fb; }
 
 /* ---------- Fields ---------- */
 .q-field__control {
-  background: rgba(255,255,255,.04);
-  border-radius: 10px;
+  background: var(--oy-surface);
+  border-radius: 2px;
   box-shadow: inset 0 0 0 1px var(--oy-border);
   padding: 0 12px;
 }
@@ -236,7 +289,7 @@ a:hover { color: #e6d9fb; }
 .q-field--standard .q-field__control:after { display: none; }
 .q-field--outlined .q-field__control:before,
 .q-field--outlined .q-field__control:after { border: none; }
-.q-field--focused .q-field__control { box-shadow: inset 0 0 0 1px rgba(203,166,247,.6); }
+.q-field--focused .q-field__control { box-shadow: inset 0 0 0 1px var(--oy-accent); }
 .q-field__native, .q-field__input, .q-field__prefix, .q-field__suffix {
   color: var(--oy-text) !important;
   font-family: var(--oy-font-body);
@@ -274,17 +327,17 @@ a:hover { color: #e6d9fb; }
 
 /* ---------- Overlays ---------- */
 .q-dialog .q-card, .q-menu {
-  background: #171321;
-  border: 1px solid rgba(255,255,255,.1);
-  backdrop-filter: blur(12px);
+  background: var(--oy-surface);
+  border: 1px solid var(--oy-border);
+  color: var(--oy-text);
 }
 .q-menu { border-radius: 12px; color: var(--oy-body-text); }
 .q-item__label { color: var(--oy-body-text); }
 .q-item--active, .q-manual-focusable--focused { color: var(--oy-accent); }
 .q-tooltip {
-  background: #241c3a;
-  color: #ecdffb;
-  border-radius: 8px;
+  background: var(--oy-text);
+  color: var(--oy-ink);
+  border-radius: 2px;
   font-family: var(--oy-font-body);
 }
 .q-notification { border-radius: 12px; font-family: var(--oy-font-body); }
@@ -292,9 +345,7 @@ a:hover { color: #e6d9fb; }
 /* ---------- Single-card views ---------- */
 .oy-single-card-dialog,
 .q-dialog .q-card.oy-single-card-dialog {
-  background:
-    radial-gradient(900px 520px at 5% 8%, rgba(138,92,232,.16), transparent 62%),
-    linear-gradient(135deg, #0d0b17 0%, #12101d 48%, #0a0912 100%);
+  background: var(--oy-bg);
   border: 0;
   border-radius: 0;
   color: var(--oy-body-text);
@@ -620,24 +671,90 @@ a:hover { color: #e6d9fb; }
   }
 }
 
-/* ---------- Shell (drawer + header) ---------- */
+/* ---------- Shell (top bar) ---------- */
 .q-drawer {
-  background: rgba(15,13,24,.85);
-  border-right: 1px solid var(--oy-border-soft);
-  backdrop-filter: blur(12px);
+  background: var(--oy-surface);
+  border-right: 1px solid var(--oy-border);
 }
-.q-header {
-  background: rgba(10,9,18,.75);
-  border-bottom: 1px solid var(--oy-border-soft);
-  backdrop-filter: blur(12px);
+.q-header, .oy-topbar, .oy-modebar {
+  background: var(--oy-bg);
+  border-bottom: 1px solid var(--oy-border);
+}
+.oy-topbar, .oy-modebar {
+  width: 100%;
+  min-height: 52px;
+}
+.oy-wordmark {
+  font-family: var(--oy-font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--oy-text);
+  letter-spacing: -0.2px;
+  cursor: pointer;
+}
+.oy-mode {
+  font-family: var(--oy-font-body);
+  font-size: 14px;
+  color: var(--oy-muted);
+  cursor: pointer;
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+}
+.oy-mode:hover { color: var(--oy-text); }
+.oy-mode.active {
+  color: var(--oy-text);
+  font-weight: 600;
+  border-bottom-color: var(--oy-accent);
+}
+.oy-collection-tab {
+  font-size: 14px;
+  color: var(--oy-muted);
+  cursor: pointer;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.oy-collection-tab.active {
+  color: var(--oy-text);
+  font-weight: 600;
+  border-bottom-color: var(--oy-accent);
+}
+.oy-search {
+  background: var(--oy-surface);
+  border: 1px solid var(--oy-border);
+  border-radius: 2px;
+  min-width: 240px;
+}
+.oy-phone-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--oy-surface-2);
+  border-top: 1px solid var(--oy-border);
+  display: none;
+}
+.oy-stamp {
+  background: var(--oy-accent) !important;
+  color: var(--oy-ink) !important;
+  border-radius: 2px;
+}
+.oy-page { padding-bottom: 24px; }
+@media (max-width: 639px) {
+  .oy-desktop-only { display: none !important; }
+  .oy-phone-nav { display: flex; }
+  .oy-page { padding-bottom: 72px; }
+}
+@media (min-width: 1024px) {
+  .oy-phone-only { display: none !important; }
 }
 
 .oy-logo {
   font-family: var(--oy-font-display);
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: .3px;
-  color: #f4f1fa;
+  letter-spacing: -0.2px;
+  color: var(--oy-text);
 }
 .oy-navlabel {
   font-size: 10px;
@@ -658,10 +775,10 @@ a:hover { color: #e6d9fb; }
   cursor: pointer;
   transition: background .15s, color .15s;
 }
-.oy-navrow:hover { color: #ecdffb; background: rgba(255,255,255,.04); }
+.oy-navrow:hover { color: var(--oy-text); background: var(--oy-surface-2); }
 .oy-navrow.active {
-  background: linear-gradient(90deg, rgba(203,166,247,.16), rgba(203,166,247,.02));
-  color: #ecdffb;
+  background: var(--oy-surface-2);
+  color: var(--oy-text);
 }
 .oy-dot {
   width: 5px;
@@ -676,19 +793,18 @@ a:hover { color: #e6d9fb; }
 
 
 def apply_theme():
-    """Applies the global color theme and editorial design system."""
+    """Applies the paper-and-ink desk. Stamp red is the only loud color."""
     ui.colors(
-        primary='#1e1e2e',   # Dark background
-        secondary='#cba6f7', # Accent purple
-        accent='#89b4fa',    # Accent blue
-        dark='#12101a',      # Dark surface
-        positive='#6fcf7c',  # Green
-        negative='#f38ba8',  # Red
-        info='#89b4fa',      # Blue
-        warning='#f9e2af'    # Yellow
+        primary='#1e1a15',
+        secondary='#9c2f24',
+        accent='#2c5a42',
+        dark='#e6ddcc',
+        positive='#2c5a42',
+        negative='#9c2f24',
+        info='#5c554b',
+        warning='#8a6830',
     )
-    # Force dark mode for the page
-    ui.dark_mode().enable()
+    ui.dark_mode().disable()
 
 
 def install_global_styles() -> None:

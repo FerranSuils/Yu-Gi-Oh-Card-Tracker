@@ -369,7 +369,7 @@ class CollectionPage:
             'available_card_types': ['Monster', 'Spell', 'Trap', 'Skill'],
             'max_owned_quantity': 100,
 
-            'search_text': '',
+            'search_text': saved_state.get('collection_search_text', ''),
             'filter_set': '',
             'filter_rarity': '',
             'filter_attr': '',
@@ -398,8 +398,8 @@ class CollectionPage:
             'sort_by': saved_state.get('collection_sort_by', 'Name'),
             'sort_descending': saved_state.get('collection_sort_descending', False),
 
-            'view_scope': saved_state.get('collection_view_scope', 'consolidated'),
-            'view_mode': saved_state.get('collection_view_mode', 'grid'),
+            'view_scope': saved_state.get('collection_view_scope', 'collectors'),
+            'view_mode': saved_state.get('collection_view_mode', 'list'),
             'page': 1,
             'page_size': COLLECTION_DESKTOP_PAGE_SIZE,
             'total_pages': 1,
@@ -1480,53 +1480,43 @@ class CollectionPage:
         cond_map = {'Mint': 'MT', 'Near Mint': 'NM', 'Played': 'PL', 'Damaged': 'DM'}
 
         if show_price:
-            headers = ['Image', 'Name', 'Set', 'Rarity', 'Cond', '1st', 'Lang', 'Price', 'Owned']
-            cols = '60px 4fr 2fr 1.5fr 0.8fr 0.5fr 0.5fr 1fr 0.8fr'
+            headers = ['Carta', 'Código', 'Estado', 'Lugar', 'Tienes', '€']
+            cols = '4fr 1.4fr 1fr 1.6fr 0.6fr 0.8fr'
         else:
-            headers = ['Image', 'Name', 'Set', 'Rarity', 'Cond', '1st', 'Lang', 'Owned']
-            cols = '60px 4fr 2fr 1.5fr 0.8fr 0.5fr 0.5fr 0.8fr'
+            headers = ['Carta', 'Código', 'Estado', 'Lugar', 'Tienes']
+            cols = '4fr 1.4fr 1fr 1.6fr 0.7fr'
 
-        with ui.column().classes('w-full gap-1'):
-            with ui.grid(columns=cols).classes('w-full bg-gray-800 p-2 font-bold rounded'):
-                for h in headers: ui.label(h)
+        with ui.column().classes('w-full gap-0'):
+            with ui.grid(columns=cols).classes('w-full px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500'):
+                for h in headers: ui.label(h).classes('oy-mono')
 
             for item in items:
-                bg = 'bg-gray-900' if not item.is_owned else 'bg-gray-800 border border-accent'
+                missing_place = item.is_owned and not any(
+                    entry.storage_location for entry in item.entries if entry.quantity
+                )
+                places = [
+                    entry.storage_location for entry in item.entries
+                    if entry.quantity and entry.storage_location
+                ]
+                place = places[0] if places else ('Sin sitio' if item.is_owned else '—')
+                edition = ' · 1st' if item.first_edition else ''
+                state = f"{cond_map.get(item.condition, item.condition[:2].upper())}{edition}"
 
-                img_src = item.image_url
-                img_id = item.image_id if item.image_id else (item.api_card.card_images[0].id if item.api_card.card_images else item.api_card.id)
-                if image_manager.image_exists(img_id):
-                    img_src = f"/images/{img_id}.jpg"
-
-                with ui.grid(columns=cols).classes(f'w-full {bg} p-1 items-center rounded hover:bg-gray-700 transition cursor-pointer') \
-                        .on('click', lambda c=item: self.open_single_view(c.api_card, c.is_owned, c.owned_count, initial_set=c.set_code, rarity=c.rarity, set_name=c.set_name, language=c.language, condition=c.condition, first_edition=c.first_edition, image_url=c.image_url, image_id=c.image_id, set_price=c.price, variant_id=c.variant_id)):
-                    with ui.image(img_src).classes('h-10 w-8 object-cover'):
-                         self._setup_card_tooltip(item.api_card, specific_image_id=item.image_id)
-                    ui.label(item.api_card.name).classes('truncate text-sm font-bold')
-                    with ui.column().classes('gap-0'):
-                        ui.label(item.set_code).classes('text-xs font-mono font-bold text-yellow-500')
-                        ui.label(item.set_name).classes('text-xs text-gray-400 truncate')
-                    ui.label(item.rarity).classes('text-xs')
-
-                    ui.label(cond_map.get(item.condition, item.condition[:2].upper())).classes('text-xs font-bold text-yellow-500')
-                    ui.label("1st" if item.first_edition else "").classes('text-xs font-bold text-orange-400')
-
-                    lang_code = item.language.strip().upper()
-                    country_code = LANGUAGE_COUNTRY_MAP.get(lang_code)
-                    flag_url = image_manager.get_flag_image_url(country_code) if country_code else None
-                    if flag_url:
-                        ui.image(flag_url).classes('w-[18px] h-3 inline-block shadow-sm').props(f'alt="{lang_code}" fit="fill"')
-                    else:
-                        ui.label(lang_code).classes('text-sm font-bold')
-
+                with ui.grid(columns=cols).classes(
+                    'w-full px-3 py-3 items-center border-b border-gray-300 cursor-pointer'
+                ).on('click', lambda c=item: self.open_single_view(
+                    c.api_card, c.is_owned, c.owned_count, initial_set=c.set_code, rarity=c.rarity,
+                    set_name=c.set_name, language=c.language, condition=c.condition,
+                    first_edition=c.first_edition, image_url=c.image_url, image_id=c.image_id,
+                    set_price=c.price, variant_id=c.variant_id,
+                )):
+                    ui.label(item.api_card.name).classes('truncate text-sm font-medium')
+                    ui.label(item.set_code or '—').classes('text-xs oy-mono text-gray-500')
+                    ui.label(state).classes('text-sm')
+                    ui.label(place).classes('text-sm ' + ('text-red-700' if missing_place else ''))
+                    ui.label(str(item.owned_count) if item.is_owned else '0').classes('text-sm oy-mono text-right')
                     if show_price:
-                        ui.label(f"€{item.price:.2f}").classes('text-sm text-green-400')
-
-                    with ui.row().classes('w-full justify-center'):
-                         if item.is_owned:
-                              ui.label(str(item.owned_count)).classes('font-bold text-accent text-lg')
-                         else:
-                              ui.label('-').classes('text-gray-600')
+                        ui.label(f'{item.price:.2f}').classes('text-sm oy-mono oy-text-gold text-right')
 
     def render_collectors_grid(self, items: List[CollectorRow]):
         metrics_config = config_manager.get_collection_metrics_config()
@@ -1642,16 +1632,15 @@ class CollectionPage:
     def render_header(self):
         with ui.element('div').classes('oy-collection-controls w-full flex flex-wrap items-center gap-4 q-mb-md'):
             with ui.row().classes('oy-collection-title-row w-full items-end justify-between no-wrap'):
-                page_header('Collection', 'Browse, filter, and value every card you own.')
-
-                with ui.button_group().classes('oy-collection-view-toggle shrink-0'):
-                    is_cons = self.state['view_scope'] == 'consolidated'
-                    with ui.button('Consolidated', on_click=lambda: self.switch_scope('consolidated')) \
-                        .props('unelevated color=secondary' if is_cons else 'outline color=grey-5'):
-                        ui.tooltip('View consolidated gameplay statistics (totals per card)')
-                    with ui.button('Collectors', on_click=lambda: self.switch_scope('collectors')) \
-                        .props('outline color=grey-5' if is_cons else 'unelevated color=secondary'):
-                        ui.tooltip('View detailed market and collection data (separate entries per set/rarity)')
+                is_cons = self.state['view_scope'] == 'consolidated'
+                with ui.row().classes('oy-collection-view-toggle items-center gap-4'):
+                    ui.label('Vista').classes('oy-mono text-xs text-gray-500')
+                    ui.button('Jugador', on_click=lambda: self.switch_scope('consolidated')).props(
+                        'flat no-caps dense color=primary' if is_cons else 'flat no-caps dense color=grey-7'
+                    )
+                    ui.button('Coleccionista', on_click=lambda: self.switch_scope('collectors')).props(
+                        'flat no-caps dense color=positive' if not is_cons else 'flat no-caps dense color=grey-7'
+                    )
 
             files = persistence.list_collections()
             # Transform file list to dict for cleaner display (hide .json/.yaml)
@@ -1687,9 +1676,10 @@ class CollectionPage:
                 if self.state['search_text'] == e.value:
                     return
                 self.state['search_text'] = e.value
+                persistence.save_ui_state({'collection_search_text': e.value or ''})
                 await self.apply_filters()
 
-            with ui.input(placeholder='Search...', on_change=on_search) \
+            with ui.input(placeholder='Nombre, código o passcode', on_change=on_search) \
                 .props('debounce=300 icon=search').classes('w-64') as i:
                 i.value = self.state['search_text']
                 ui.tooltip('Search by card name, type, or description')
@@ -1752,7 +1742,7 @@ class CollectionPage:
                  last = changelog_manager.get_last_change(self.state['selected_file'])
                  has_history = last is not None
 
-            undo_btn = ui.button('Undo Last', icon='undo', on_click=self.undo_last_action).props('flat color=white')
+            undo_btn = ui.button('Deshacer', on_click=self.undo_last_action).props('flat no-caps color=primary')
             if not has_history:
                  undo_btn.disable()
                  undo_btn.classes('opacity-50')

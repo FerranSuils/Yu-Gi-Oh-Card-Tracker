@@ -9,7 +9,7 @@ def test_chart_palette_and_metric_classes_are_valid_and_shared():
     assert len(theme.CHART_COLORS) == 10
     assert all(re.fullmatch(r'#[0-9a-fA-F]{6}', color) for color in theme.CHART_COLORS)
     assert theme.METRIC_VALUE_CLASSES == {
-        'primary': 'text-white',
+        'primary': 'oy-text-ink',
         'secondary': 'oy-text-accent',
         'accent': 'oy-text-blue',
         'info': 'oy-text-blue',
@@ -39,10 +39,10 @@ def test_apply_theme_uses_distinct_semantic_colors_and_enables_dark_mode():
         theme.apply_theme()
 
     palette = colors.call_args.kwargs
-    assert palette['primary'] == '#1e1e2e'
-    assert palette['secondary'] == '#cba6f7'
+    assert palette['primary'] == '#1e1a15'
+    assert palette['secondary'] == '#9c2f24'
     assert palette['primary'] != palette['secondary']
-    dark_mode.enable.assert_called_once_with()
+    dark_mode.disable.assert_called_once_with()
     add_head_html.assert_not_called()
 
 

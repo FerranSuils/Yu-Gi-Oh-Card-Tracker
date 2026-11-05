@@ -113,19 +113,43 @@ def login_page(next_path: str | None = None) -> None:
         finally:
             submit.props(remove='loading disable')
 
-    with ui.column().classes('absolute-center items-center w-full q-px-md'):
-        with ui.card().classes('w-full max-w-md q-pa-lg gap-1'):
-            ui.label('OpenYuGi').classes('oy-logo text-[26px] text-center w-full')
-            ui.label('Sign in to manage your collection').classes(
-                'oy-sub text-center w-full q-mb-md'
-            )
-            username = ui.input('Username', value='').props(
-                'outlined autocomplete=username autofocus'
-            ).classes('w-full')
-            password = ui.input('Password', password=True, password_toggle_button=True).props(
-                'outlined autocomplete=current-password'
-            ).classes('w-full')
-            password.on('keydown.enter', login)
-            submit = ui.button('Sign in', icon='login', on_click=login).props(
-                'color=secondary size=lg rounded unelevated'
-            ).classes('w-full q-mt-md')
+    with ui.column().classes('w-full gap-0'):
+        with ui.row().classes('w-full items-center justify-between px-6 py-5'):
+            ui.label('OpenYuGi').classes('oy-logo')
+            ui.label('en local').classes('oy-mono text-xs text-gray-500')
+        ui.separator()
+
+        with ui.row().classes('w-full items-start gap-12 px-6 lg:px-16 py-16'):
+            with ui.column().classes('gap-4 max-w-xl'):
+                ui.label('COLECCIÓN FÍSICA').classes('oy-mono text-xs oy-text-accent tracking-widest')
+                ui.label('Cada copia,\ncon su sitio.').classes('oy-h1 whitespace-pre-line').style('font-size: 56px; line-height: 1.05')
+                ui.label(
+                    'OpenYuGi corre en tu ordenador y guarda las cartas que tienes de verdad. '
+                    'Separa la carta que juegas de la impresión que coleccionas: código de set, '
+                    'rareza, idioma, estado, primera edición y el binder o la caja donde está.'
+                ).classes('text-base text-gray-600 leading-relaxed')
+            with ui.card().classes('w-full max-w-sm p-6 gap-3'):
+                ui.label('Abrir la app').classes('oy-display text-2xl')
+                ui.label('La colección no sale de este ordenador.').classes('oy-sub')
+                username = ui.input('Usuario', value='').props(
+                    'outlined autocomplete=username autofocus'
+                ).classes('w-full')
+                password = ui.input('Contraseña', password=True, password_toggle_button=True).props(
+                    'outlined autocomplete=current-password'
+                ).classes('w-full')
+                password.on('keydown.enter', login)
+                submit = ui.button('Entrar al mostrador', on_click=login).props(
+                    'color=secondary unelevated no-caps'
+                ).classes('w-full q-mt-sm')
+
+        with ui.element('div').classes('w-full px-6 lg:px-16 pb-16 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8'):
+            for number, title, body in (
+                ('01', 'Un archivo', 'La colección es JSON en tu disco. La copias, la lees, la guardas.'),
+                ('02', 'Dos maneras de mirar', 'Jugador agrupa impresiones. Coleccionista conserva set, arte y rareza.'),
+                ('03', 'Escáner en beta', 'La foto no sale del ordenador. Si hay duda, tú eliges la carta.'),
+                ('04', 'Mazos honestos', 'El mazo se compara con lo que posees y con la banlist que elijas.'),
+            ):
+                with ui.column().classes('gap-1 max-w-xs'):
+                    ui.label(number).classes('oy-mono text-xs oy-text-accent')
+                    ui.label(title).classes('font-medium')
+                    ui.label(body).classes('text-sm text-gray-600')
