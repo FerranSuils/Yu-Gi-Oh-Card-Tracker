@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import hashlib
 import hmac
 import logging
 import time
@@ -12,6 +14,7 @@ from src.services.auth_service import (
     AUTH_SESSION_KEY,
     AUTH_USER_KEY,
     auth_service,
+    get_storage_secret,
 )
 from src.ui.theme import apply_theme
 
@@ -19,6 +22,7 @@ TEMP_AUTH_TOKEN_KEY = 'temp_auth_token'
 TEMP_AUTH_TOKEN_EXPIRY_KEY = 'temp_auth_token_expiry'
 PENDING_USER_KEY = 'pending_auth_user'
 TEMP_AUTH_TOKEN_TTL_SECONDS = 60
+_USED_SIGNUP_TOKENS: set[str] = set()
 
 # Read the live input values at click time. NiceGUI's Python value can lag
 # behind the last keystroke when a test or a fast user submits immediately.
@@ -58,11 +62,41 @@ def _typed_pair(event, fallback_user, fallback_password):
 logger = logging.getLogger(__name__)
 
 
+def issue_signup_token(username: str) -> str:
+    """Sign a short-lived login so the callback does not depend on the previous session."""
+    expires_at = int(time.time()) + TEMP_AUTH_TOKEN_TTL_SECONDS
+    payload = f'{username}\n{expires_at}'.encode()
+    signature = hmac.new(get_storage_secret().encode(), payload, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(payload + b'\n' + signature).decode()
+
+
+def consume_signup_token(token: str) -> str | None:
+    if token in _USED_SIGNUP_TOKENS:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(token.encode())
+        payload, signature = raw.rsplit(b'\n', 1)
+        expected = hmac.new(get_storage_secret().encode(), payload, hashlib.sha256).digest()
+        if not hmac.compare_digest(signature, expected):
+            return None
+        username, expires_at = payload.decode().split('\n', 1)
+        if time.time() > int(expires_at):
+            return None
+    except Exception:
+        return None
+    _USED_SIGNUP_TOKENS.add(token)
+    return username
+
+
 def session_is_authenticated() -> bool:
-    return bool(
-        app.storage.user.get(AUTH_SESSION_KEY)
-        and app.storage.user.get(AUTH_REVISION_KEY) == auth_service.revision()
+    stored = app.storage.user
+    username = stored.get(AUTH_USER_KEY)
+    expected = (
+        auth_service.revision_for(username)
+        if isinstance(username, str) and username
+        else auth_service.revision()
     )
+    return bool(stored.get(AUTH_SESSION_KEY) and stored.get(AUTH_REVISION_KEY) == expected)
 
 
 def _safe_next_path(next_path: str | None) -> str:
@@ -91,6 +125,11 @@ async def complete_login_callback(token: str | None, next_path: str | None) -> s
     """
     storage = app.storage
     old_user_storage = storage.user
+    signed_user = consume_signup_token(token) if isinstance(token, str) else None
+    if signed_user:
+        old_user_storage[PENDING_USER_KEY] = signed_user
+        old_user_storage[TEMP_AUTH_TOKEN_KEY] = token
+        old_user_storage[TEMP_AUTH_TOKEN_EXPIRY_KEY] = time.time() + TEMP_AUTH_TOKEN_TTL_SECONDS
     expected_token = old_user_storage.get(TEMP_AUTH_TOKEN_KEY)
     expires_at = old_user_storage.get(TEMP_AUTH_TOKEN_EXPIRY_KEY)
     if not (

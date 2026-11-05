@@ -1,11 +1,9 @@
 import asyncio
 import os
-import time
-import uuid
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from fastapi import APIRouter, HTTPException, Query, status
-from nicegui import app, run
+from nicegui import run
 from pydantic import BaseModel
 
 from src.api.models import (
@@ -26,7 +24,7 @@ from src.core.persistence import persistence
 from src.services.collection_editor import CollectionEditor
 from src.services.auth_service import auth_service
 from src.services.ygo_api import ygo_service
-from src.ui.auth import PENDING_USER_KEY, TEMP_AUTH_TOKEN_EXPIRY_KEY, TEMP_AUTH_TOKEN_KEY, TEMP_AUTH_TOKEN_TTL_SECONDS
+from src.ui.auth import issue_signup_token
 from src.services.yugipedia_service import yugipedia_service
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
@@ -45,11 +43,9 @@ async def register_account(body: RegisterRequest) -> Dict[str, str]:
         account = await _io_bound(auth_service.register, body.username, body.password, body.confirm)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    token = str(uuid.uuid4())
-    app.storage.user[PENDING_USER_KEY] = account
-    app.storage.user[TEMP_AUTH_TOKEN_KEY] = token
-    app.storage.user[TEMP_AUTH_TOKEN_EXPIRY_KEY] = time.time() + TEMP_AUTH_TOKEN_TTL_SECONDS
-    return {"next": f"/login/callback?token={token}&next=/collection"}
+    from urllib.parse import urlencode
+    token = issue_signup_token(account)
+    return {"next": "/login/callback?" + urlencode({"token": token, "next": "/collection"})}
 
 T = TypeVar("T")
 
