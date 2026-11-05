@@ -131,6 +131,11 @@ async def complete_login_callback(token: str | None, next_path: str | None) -> s
         old_user_storage[AUTH_SESSION_KEY] = True
         old_user_storage[AUTH_USER_KEY] = signed_user
         old_user_storage[AUTH_REVISION_KEY] = auth_service.revision_for(signed_user)
+        from nicegui.storage import request_contextvar
+        request = request_contextvar.get()
+        if request is not None:
+            request.session['oy_user'] = signed_user
+            request.session['oy_rev'] = old_user_storage[AUTH_REVISION_KEY]
         old_user_storage.pop(TEMP_AUTH_TOKEN_KEY, None)
         old_user_storage.pop(TEMP_AUTH_TOKEN_EXPIRY_KEY, None)
         old_user_storage.pop(PENDING_USER_KEY, None)

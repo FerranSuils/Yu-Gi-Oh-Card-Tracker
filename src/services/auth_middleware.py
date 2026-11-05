@@ -25,6 +25,16 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         session = app.storage.user
+        cookie_user = request.session.get('oy_user') if 'session' in request.scope else None
+        cookie_rev = request.session.get('oy_rev') if 'session' in request.scope else None
+        if (
+            isinstance(cookie_user, str)
+            and cookie_user
+            and cookie_rev == auth_service.revision_for(cookie_user)
+        ):
+            session[AUTH_SESSION_KEY] = True
+            session[AUTH_USER_KEY] = cookie_user
+            session[AUTH_REVISION_KEY] = cookie_rev
         username = session.get(AUTH_USER_KEY)
         expected_revision = (
             auth_service.revision_for(username)
