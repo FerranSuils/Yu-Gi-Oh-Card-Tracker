@@ -1054,7 +1054,7 @@ class DeckBuilderPage:
     @ui.refreshable
     def render_header(self):
         with ui.row().classes('oy-deck-builder-header w-full items-center gap-4 q-mb-md'):
-            page_header('Deck Builder', 'Build decks straight from the cards you own.').classes('mr-2')
+            page_header('Mazos', 'El mazo se compara con lo que de verdad tienes.').classes('mr-2')
 
             deck_groups = list(self.state['available_deck_groups'] or ['main'])
             if self.state['current_deck_group'] not in deck_groups:
@@ -1683,6 +1683,11 @@ class DeckBuilderPage:
                 ui.icon('remove', color='white').classes('text-lg')
 
             self._render_ban_icon(card.id)
+            if self.state['reference_collection']:
+                at_home = owned_map.get(base_id, 0)
+                ui.label(f'{at_home} en casa').classes('absolute bottom-0 left-0 right-0 text-[10px] text-center py-0.5').style(
+                    'background:#fbf7f0;color:#9c2f24' if not is_owned_copy else 'background:#fbf7f0;color:#2c5a42'
+                )
 
             # Warning Logic
             warnings = []

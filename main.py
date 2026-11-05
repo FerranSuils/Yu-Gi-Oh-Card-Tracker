@@ -89,6 +89,7 @@ os.makedirs('data/images', exist_ok=True)
 os.makedirs('data/img', exist_ok=True)
 os.makedirs('data/collections/storage', exist_ok=True)
 os.makedirs('data/flags', exist_ok=True)
+app.add_static_files('/fonts', 'static/fonts')
 app.add_static_files('/images', 'data/images')
 app.add_static_files('/data/img', 'data/img') # Serve data/img for Art Match if used
 app.add_static_files('/sets', 'data/sets')
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     # Disable reload to prevent restart loops when writing to data/ directory (images, db)
     ui.run(
-        title='OpenYuGi',
+        title='OpenYuGi — colección de Yu-Gi-Oh en tu ordenador',
         favicon='🃏',
         reload=False,
         storage_secret=get_storage_secret(),
