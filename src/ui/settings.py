@@ -3,7 +3,7 @@ import asyncio
 from nicegui import app, run, ui
 
 from src.core.config import config_manager
-from src.services.auth_service import AUTH_REVISION_KEY, auth_service
+from src.services.auth_service import AUTH_REVISION_KEY, AUTH_USER_KEY, auth_service
 from src.services.sample_generator import generate_sample_collection
 from src.services.ygo_api import ygo_service
 from src.ui.theme import page_header
@@ -13,7 +13,7 @@ def settings_page() -> None:
     """Render application preferences, account security, and data tools."""
     page_header(
         'Configuration',
-        'Global preferences, credentials, and local database management.',
+        'Preferencias de la cuenta y de tu colección.',
     ).classes('q-mb-md')
 
     with ui.grid(columns=1).classes('w-full gap-4 lg:grid-cols-2'):
@@ -66,8 +66,9 @@ def settings_page() -> None:
             ui.label('Changing either credential requires your current password.').classes(
                 'text-caption text-grey-5 q-mb-md'
             )
+            signed_in_as = app.storage.user.get(AUTH_USER_KEY) or config_manager.get_auth_username()
             account_username = ui.input(
-                'Username', value=config_manager.get_auth_username()
+                'Username', value=signed_in_as
             ).props('outlined autocomplete=username maxlength=64').classes('w-full')
             current_password = ui.input(
                 'Current password', password=True, password_toggle_button=True
@@ -80,9 +81,11 @@ def settings_page() -> None:
             ).props('outlined autocomplete=new-password').classes('w-full')
 
             async def save_credentials() -> None:
+                actor = app.storage.user.get(AUTH_USER_KEY) or config_manager.get_auth_username()
                 try:
-                    await run.io_bound(
-                        auth_service.update_credentials,
+                    renamed = await run.io_bound(
+                        auth_service.update_account,
+                        actor,
                         current_password.value,
                         account_username.value,
                         new_password.value,
@@ -92,12 +95,13 @@ def settings_page() -> None:
                     ui.notify(str(error), type='negative')
                     return
 
-                app.storage.user[AUTH_REVISION_KEY] = auth_service.revision()
+                app.storage.user[AUTH_USER_KEY] = renamed
+                app.storage.user[AUTH_REVISION_KEY] = auth_service.revision_for(renamed)
                 current_password.set_value('')
                 new_password.set_value('')
                 confirm_password.set_value('')
-                account_username.set_value(config_manager.get_auth_username())
-                ui.notify('Credentials updated. Other sessions have been signed out.', type='positive')
+                account_username.set_value(renamed)
+                ui.notify('Cuenta actualizada. Las otras sesiones de esta cuenta se han cerrado.', type='positive')
 
             ui.button('Save credentials', icon='lock', on_click=save_credentials).props(
                 'color=secondary'

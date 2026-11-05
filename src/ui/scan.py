@@ -2200,7 +2200,7 @@ def scan_page():
         ui.run_javascript(f'setRotation({page.rotation})')
 
     with ui.row().classes('w-full items-end justify-between q-mb-sm'):
-        page_header('Escanear', 'Lee el código. Tú confirmas la carta. La foto no sale de este ordenador.')
+        page_header('Escanear', 'Lee el código. Tú confirmas la carta antes de guardarla.')
 
     with ui.tabs(on_change=handle_tab_change).classes('w-full') as tabs:
         live_tab = ui.tab('Live Scan')

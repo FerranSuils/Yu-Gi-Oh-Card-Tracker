@@ -1,7 +1,7 @@
 from nicegui import app, ui
 
 from src.core.persistence import persistence
-from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY
+from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY, AUTH_USER_KEY
 from src.ui.theme import apply_theme
 
 # Routes the shell must keep reachable. Labels follow the desk, not the old drawer.
@@ -84,6 +84,13 @@ def create_layout(content_function):
             search.on('keydown.enter', submit_search)
 
             ui.space()
+            signed_in_as = ''
+            try:
+                signed_in_as = str(app.storage.user.get(AUTH_USER_KEY) or '')
+            except Exception:
+                signed_in_as = ''
+            if signed_in_as:
+                ui.label(signed_in_as).classes('oy-mono text-xs text-gray-600')
             with ui.button('Más', icon='expand_more').props('flat dense no-caps color=primary'):
                 with ui.menu():
                     for route in ('/', '/import', '/db_editor', '/settings'):

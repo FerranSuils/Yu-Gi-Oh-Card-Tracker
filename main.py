@@ -21,7 +21,7 @@ from src.ui.bulk_add import bulk_add_page
 from src.ui.scan import scan_page
 from src.ui.db_editor import db_editor_page
 from src.ui.storage import storage_page
-from src.ui.auth import complete_login_callback, login_page
+from src.ui.auth import complete_login_callback, login_page, register_page
 from src.ui.settings import settings_page
 from src.ui.theme import install_global_styles
 from src.api.routes import router as api_router
@@ -35,6 +35,11 @@ install_global_styles()
 @ui.page('/login')
 def login(request: Request):
     login_page(request.query_params.get('next'))
+
+
+@ui.page('/registro')
+def registro(request: Request):
+    register_page(request.query_params.get('next'))
 
 
 @ui.page('/login/callback')

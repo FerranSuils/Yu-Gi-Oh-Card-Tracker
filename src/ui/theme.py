@@ -25,7 +25,7 @@ METRIC_VALUE_CLASSES = {
 TILE_GRID_COLUMNS = 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
 
 GLOBAL_CSS = """
-<meta name="description" content="OpenYuGi cataloga cartas físicas de Yu-Gi-Oh: set, rareza, idioma, estado y el binder donde están. Corre en tu ordenador, sin cuenta en la nube.">
+<meta name="description" content="OpenYuGi es gratis. Crea una cuenta y cataloga tus cartas de Yu-Gi-Oh: set, rareza, idioma, estado y el sitio de cada copia.">
 <style>
 @font-face {
   font-family: "Fraunces";

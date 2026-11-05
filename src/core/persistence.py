@@ -7,6 +7,7 @@ import unicodedata
 import uuid
 from urllib.parse import unquote
 from typing import List, Optional
+from src.core.account_scope import current_account_name, user_data_root, uses_private_storage
 from src.core.models import Collection, Deck
 
 DATA_DIR = "data"
@@ -48,10 +49,28 @@ def sanitize_collection_filename(filename: str) -> str:
 
 class PersistenceManager:
     def __init__(self, data_dir: str = COLLECTIONS_DIR, decks_dir: str = DECKS_DIR):
-        self.data_dir = data_dir
-        self.decks_dir = decks_dir
-        os.makedirs(self.data_dir, exist_ok=True)
-        os.makedirs(self.decks_dir, exist_ok=True)
+        self._shared_data_dir = data_dir
+        self._shared_decks_dir = decks_dir
+        os.makedirs(self._shared_data_dir, exist_ok=True)
+        os.makedirs(self._shared_decks_dir, exist_ok=True)
+
+    @property
+    def data_dir(self) -> str:
+        account = current_account_name()
+        if not uses_private_storage(account):
+            return self._shared_data_dir
+        path = os.path.join(user_data_root(account), "collections")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def decks_dir(self) -> str:
+        account = current_account_name()
+        if not uses_private_storage(account):
+            return self._shared_decks_dir
+        path = os.path.join(user_data_root(account), "decks")
+        os.makedirs(path, exist_ok=True)
+        return path
 
     def list_collections(self) -> List[str]:
         """Returns a list of available collection filenames."""
@@ -309,9 +328,17 @@ class PersistenceManager:
 
     # --- UI State Persistence ---
 
+    def _ui_state_path(self) -> str:
+        account = current_account_name()
+        if uses_private_storage(account):
+            folder = user_data_root(account)
+            os.makedirs(folder, exist_ok=True)
+            return os.path.join(folder, "ui_state.json")
+        return os.path.join(DATA_DIR, "ui_state.json")
+
     def load_ui_state(self) -> dict:
-        """Loads UI state from data/ui_state.json."""
-        filepath = os.path.join(DATA_DIR, "ui_state.json")
+        """Loads UI state for the signed-in account."""
+        filepath = self._ui_state_path()
         if not os.path.exists(filepath):
             return {}
         try:
@@ -322,8 +349,8 @@ class PersistenceManager:
             return {}
 
     def save_ui_state(self, state: dict):
-        """Saves UI state to data/ui_state.json. Merges with existing state."""
-        filepath = os.path.join(DATA_DIR, "ui_state.json")
+        """Saves UI state for the signed-in account. Merges with existing state."""
+        filepath = self._ui_state_path()
         try:
             current = self.load_ui_state()
             current.update(state)

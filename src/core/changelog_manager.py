@@ -22,8 +22,15 @@ class ChangelogManager:
     def _get_filepath(self, collection_name: str) -> str:
         # Sanitize name to avoid path traversal
         safe_name = os.path.basename(collection_name)
+        from src.core.account_scope import current_account_name, user_data_root, uses_private_storage
+
+        account = current_account_name()
+        directory = self.data_dir
+        if uses_private_storage(account):
+            directory = os.path.join(user_data_root(account), "changelogs")
+            os.makedirs(directory, exist_ok=True)
         # Distinct log file for each collection file
-        return os.path.join(self.data_dir, f"{safe_name}.log")
+        return os.path.join(directory, f"{safe_name}.log")
 
     def log_change(self, collection_name: str, action_type: str, card_data: Dict[str, Any], quantity: int):
         """

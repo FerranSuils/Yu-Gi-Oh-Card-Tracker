@@ -30,6 +30,24 @@ def auth(tmp_path):
     return manager, AuthService(manager)
 
 
+def test_registration_is_free_and_isolated_from_the_primary_account(auth, tmp_path, monkeypatch):
+    manager, service = auth
+    monkeypatch.chdir(tmp_path)
+    service.accounts_file = tmp_path / 'accounts.json'
+
+    created = service.register('mesa', 'una-clave-larga', 'una-clave-larga')
+
+    assert created == 'mesa'
+    assert service.authenticate('mesa', 'una-clave-larga')
+    assert not service.authenticate('mesa', 'admin')
+    assert service.authenticate('admin', 'admin')
+    assert (tmp_path / 'data' / 'users' / 'mesa' / 'collections').is_dir()
+    with pytest.raises(ValueError, match='ya existe'):
+        service.register('mesa', 'otra-clave-larga', 'otra-clave-larga')
+    with pytest.raises(ValueError, match='no coinciden'):
+        service.register('otra', 'una-clave-larga', 'distinta')
+
+
 def test_default_credentials_are_hashed_and_authenticate(auth):
     manager, service = auth
 
@@ -148,6 +166,7 @@ def test_existing_config_permissions_are_tightened_on_startup(tmp_path):
 
 def test_login_nicegui_assets_and_well_known_uris_are_public():
     assert is_public_path('/login')
+    assert is_public_path('/registro')
     assert is_public_path('/login/callback')
     assert is_public_path('/_nicegui_ws')
     assert is_public_path('/_nicegui/3.13.0/static/nicegui.js')

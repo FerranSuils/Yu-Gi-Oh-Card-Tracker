@@ -7,11 +7,17 @@ from urllib.parse import urlencode
 
 from nicegui import app, run, ui
 
-from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY, auth_service
+from src.services.auth_service import (
+    AUTH_REVISION_KEY,
+    AUTH_SESSION_KEY,
+    AUTH_USER_KEY,
+    auth_service,
+)
 from src.ui.theme import apply_theme
 
 TEMP_AUTH_TOKEN_KEY = 'temp_auth_token'
 TEMP_AUTH_TOKEN_EXPIRY_KEY = 'temp_auth_token_expiry'
+PENDING_USER_KEY = 'pending_auth_user'
 TEMP_AUTH_TOKEN_TTL_SECONDS = 60
 
 logger = logging.getLogger(__name__)
@@ -74,8 +80,12 @@ async def complete_login_callback(token: str | None, next_path: str | None) -> s
     session_id = str(uuid.uuid4())
     storage.browser['id'] = session_id
     await storage._create_user_storage(session_id)  # pylint: disable=protected-access
+    username = old_user_storage.get(PENDING_USER_KEY)
+    if not isinstance(username, str) or not username:
+        username = auth_service.config_manager.get_auth_username()
     storage.user[AUTH_SESSION_KEY] = True
-    storage.user[AUTH_REVISION_KEY] = auth_service.revision()
+    storage.user[AUTH_USER_KEY] = username
+    storage.user[AUTH_REVISION_KEY] = auth_service.revision_for(username)
 
     # NiceGUI retains per-user storage by session ID. Clear its persistent data
     # and remove the old in-memory entry once the replacement session is ready.
@@ -97,9 +107,10 @@ def login_page(next_path: str | None = None) -> None:
     async def login() -> None:
         submit.props('loading disable')
         try:
-            authenticated = await run.io_bound(auth_service.authenticate, username.value, password.value)
-            if authenticated:
+            account = await run.io_bound(auth_service.identify, username.value, password.value)
+            if account:
                 token = str(uuid.uuid4())
+                app.storage.user[PENDING_USER_KEY] = account
                 app.storage.user[TEMP_AUTH_TOKEN_KEY] = token
                 app.storage.user[TEMP_AUTH_TOKEN_EXPIRY_KEY] = time.time() + TEMP_AUTH_TOKEN_TTL_SECONDS
                 callback_query = urlencode({'token': token, 'next': destination})
@@ -109,14 +120,14 @@ def login_page(next_path: str | None = None) -> None:
             # A fixed delay makes online guessing slower without blocking NiceGUI's event loop.
             await asyncio.sleep(1)
             password.set_value('')
-            ui.notify('Invalid username or password.', type='negative')
+            ui.notify('Usuario o contraseña incorrectos.', type='negative')
         finally:
             submit.props(remove='loading disable')
 
     with ui.column().classes('w-full gap-0'):
         with ui.row().classes('w-full items-center justify-between px-6 py-5'):
-            ui.label('OpenYuGi').classes('oy-logo')
-            ui.label('en local').classes('oy-mono text-xs text-gray-500')
+            ui.label('OpenYuGi').classes('oy-logo').on('click', lambda: ui.navigate.to('/login'))
+            ui.label('gratis').classes('oy-mono text-xs text-gray-500')
         ui.separator()
 
         with ui.row().classes('w-full items-start gap-12 px-6 lg:px-16 py-16'):
@@ -124,13 +135,12 @@ def login_page(next_path: str | None = None) -> None:
                 ui.label('COLECCIÓN FÍSICA').classes('oy-mono text-xs oy-text-accent tracking-widest')
                 ui.label('Cada copia,\ncon su sitio.').classes('oy-h1 whitespace-pre-line').style('font-size: 56px; line-height: 1.05')
                 ui.label(
-                    'OpenYuGi corre en tu ordenador y guarda las cartas que tienes de verdad. '
-                    'Separa la carta que juegas de la impresión que coleccionas: código de set, '
-                    'rareza, idioma, estado, primera edición y el binder o la caja donde está.'
+                    'OpenYuGi es gratis. Creas una cuenta y catalogas las cartas que tienes: '
+                    'set, rareza, idioma, estado, primera edición y el binder o la caja donde está cada copia.'
                 ).classes('text-base text-gray-600 leading-relaxed')
             with ui.card().classes('w-full max-w-sm p-6 gap-3'):
-                ui.label('Abrir la app').classes('oy-display text-2xl')
-                ui.label('La colección no sale de este ordenador.').classes('oy-sub')
+                ui.label('Entrar').classes('oy-display text-2xl')
+                ui.label('Gratis para todo el mundo.').classes('oy-sub')
                 username = ui.input('Usuario', value='').props(
                     'outlined autocomplete=username autofocus'
                 ).classes('w-full')
@@ -141,15 +151,73 @@ def login_page(next_path: str | None = None) -> None:
                 submit = ui.button('Entrar al mostrador', on_click=login).props(
                     'color=secondary unelevated no-caps'
                 ).classes('w-full q-mt-sm')
+                ui.button('Crear cuenta', on_click=lambda: ui.navigate.to('/registro')).props(
+                    'flat no-caps color=primary'
+                ).classes('w-full')
 
         with ui.element('div').classes('w-full px-6 lg:px-16 pb-16 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8'):
             for number, title, body in (
-                ('01', 'Un archivo', 'La colección es JSON en tu disco. La copias, la lees, la guardas.'),
+                ('01', 'Gratis', 'Una cuenta, tu colección, sin pago y sin límite de cartas.'),
                 ('02', 'Dos maneras de mirar', 'Jugador agrupa impresiones. Coleccionista conserva set, arte y rareza.'),
-                ('03', 'Escáner en beta', 'La foto no sale del ordenador. Si hay duda, tú eliges la carta.'),
+                ('03', 'Escáner', 'La foto se usa para leer la carta. Tú confirmas antes de guardarla.'),
                 ('04', 'Mazos honestos', 'El mazo se compara con lo que posees y con la banlist que elijas.'),
             ):
                 with ui.column().classes('gap-1 max-w-xs'):
                     ui.label(number).classes('oy-mono text-xs oy-text-accent')
                     ui.label(title).classes('font-medium')
                     ui.label(body).classes('text-sm text-gray-600')
+
+
+def register_page(next_path: str | None = None) -> None:
+    """Public, free registration. Each account gets its own collection."""
+    apply_theme()
+    destination = _safe_next_path(next_path)
+    if session_is_authenticated():
+        ui.navigate.to(destination)
+        return
+
+    async def register() -> None:
+        submit.props('loading disable')
+        try:
+            account = await run.io_bound(
+                auth_service.register,
+                username.value,
+                password.value,
+                confirm.value,
+            )
+            token = str(uuid.uuid4())
+            app.storage.user[PENDING_USER_KEY] = account
+            app.storage.user[TEMP_AUTH_TOKEN_KEY] = token
+            app.storage.user[TEMP_AUTH_TOKEN_EXPIRY_KEY] = time.time() + TEMP_AUTH_TOKEN_TTL_SECONDS
+            callback_query = urlencode({'token': token, 'next': destination if destination != '/' else '/collection'})
+            ui.navigate.to(f'/login/callback?{callback_query}')
+        except ValueError as error:
+            ui.notify(str(error), type='negative')
+        finally:
+            submit.props(remove='loading disable')
+
+    with ui.column().classes('w-full gap-0'):
+        with ui.row().classes('w-full items-center justify-between px-6 py-5'):
+            ui.label('OpenYuGi').classes('oy-logo').on('click', lambda: ui.navigate.to('/login'))
+            ui.label('gratis').classes('oy-mono text-xs text-gray-500')
+        ui.separator()
+        with ui.row().classes('w-full justify-center px-6 py-16'):
+            with ui.card().classes('w-full max-w-sm p-6 gap-3'):
+                ui.label('Crear cuenta').classes('oy-display text-2xl')
+                ui.label('Es gratis. Tu colección no la ve nadie más.').classes('oy-sub')
+                username = ui.input('Usuario', value='').props(
+                    'outlined autocomplete=username autofocus'
+                ).classes('w-full')
+                password = ui.input('Contraseña', password=True, password_toggle_button=True).props(
+                    'outlined autocomplete=new-password'
+                ).classes('w-full')
+                confirm = ui.input('Repite la contraseña', password=True, password_toggle_button=True).props(
+                    'outlined autocomplete=new-password'
+                ).classes('w-full')
+                confirm.on('keydown.enter', register)
+                submit = ui.button('Crear cuenta', on_click=register).props(
+                    'color=secondary unelevated no-caps'
+                ).classes('w-full q-mt-sm')
+                ui.button('Ya tengo cuenta', on_click=lambda: ui.navigate.to('/login')).props(
+                    'flat no-caps color=primary'
+                ).classes('w-full')
