@@ -749,12 +749,29 @@ a:hover { color: var(--oy-accent-deep); }
   .oy-phone-only { display: none !important; }
 }
 
-.oy-logo {
+.oy-logo, .oy-wordmark {
   font-family: var(--oy-font-display);
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.2px;
   color: var(--oy-text);
+}
+.oy-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.oy-mark {
+  width: 18px;
+  height: 24px;
+  display: block;
+  flex: none;
+}
+.oy-form-error {
+  min-height: 1.25rem;
+  color: var(--oy-accent);
+  font-size: 14px;
 }
 .oy-navlabel {
   font-size: 10px;

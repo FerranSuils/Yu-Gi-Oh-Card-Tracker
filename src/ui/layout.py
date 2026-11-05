@@ -69,7 +69,9 @@ def create_layout(content_function):
 
     with ui.column().classes('w-full gap-0'):
         with ui.row().classes('oy-topbar w-full items-center gap-4 px-4 lg:px-6 py-2 no-wrap'):
-            ui.label('OpenYuGi').classes('oy-wordmark').on('click', lambda: go('/collection'))
+            with ui.row().classes('oy-brand').on('click', lambda: go('/collection')):
+                ui.image('/brand/mark.svg').classes('oy-mark')
+                ui.label('OpenYuGi').classes('oy-wordmark')
 
             with ui.row().classes('items-center gap-4 oy-desktop-only'):
                 for filename in collections[:4]:

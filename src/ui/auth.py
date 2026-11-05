@@ -20,6 +20,20 @@ TEMP_AUTH_TOKEN_EXPIRY_KEY = 'temp_auth_token_expiry'
 PENDING_USER_KEY = 'pending_auth_user'
 TEMP_AUTH_TOKEN_TTL_SECONDS = 60
 
+# Read the live input values at click time. NiceGUI's Python value can lag
+# behind the last keystroke when a test or a fast user submits immediately.
+_FIELD_VALUES_JS = '''() => {
+  const card = event.currentTarget.closest('.q-card') || document;
+  emit([...card.querySelectorAll('input')].map((input) => input.value));
+}'''
+
+
+def _typed_pair(event, fallback_user, fallback_password):
+    typed = list(getattr(event, 'args', None) or [])
+    user = typed[0] if len(typed) > 0 and typed[0] is not None else fallback_user
+    password = typed[1] if len(typed) > 1 and typed[1] is not None else fallback_password
+    return user, password
+
 logger = logging.getLogger(__name__)
 
 
@@ -104,10 +118,11 @@ def login_page(next_path: str | None = None) -> None:
         ui.navigate.to(destination)
         return
 
-    async def login() -> None:
+    async def login(event=None) -> None:
+        typed_user, typed_password = _typed_pair(event, username.value, password.value)
         submit.props('loading disable')
         try:
-            account = await run.io_bound(auth_service.identify, username.value, password.value)
+            account = await run.io_bound(auth_service.identify, typed_user, typed_password)
             if account:
                 token = str(uuid.uuid4())
                 app.storage.user[PENDING_USER_KEY] = account
@@ -120,13 +135,15 @@ def login_page(next_path: str | None = None) -> None:
             # A fixed delay makes online guessing slower without blocking NiceGUI's event loop.
             await asyncio.sleep(1)
             password.set_value('')
-            ui.notify('Usuario o contraseña incorrectos.', type='negative')
+            form_error.set_text('Usuario o contraseña incorrectos.')
         finally:
             submit.props(remove='loading disable')
 
     with ui.column().classes('w-full gap-0'):
         with ui.row().classes('w-full items-center justify-between px-6 py-5'):
-            ui.label('OpenYuGi').classes('oy-logo').on('click', lambda: ui.navigate.to('/login'))
+            with ui.row().classes('oy-brand').on('click', lambda: ui.navigate.to('/login')):
+                ui.image('/brand/mark.svg').classes('oy-mark')
+                ui.label('OpenYuGi').classes('oy-logo')
             ui.label('gratis').classes('oy-mono text-xs text-gray-500')
         ui.separator()
 
@@ -141,6 +158,7 @@ def login_page(next_path: str | None = None) -> None:
             with ui.card().classes('w-full max-w-sm p-6 gap-3'):
                 ui.label('Entrar').classes('oy-display text-2xl')
                 ui.label('Gratis para todo el mundo.').classes('oy-sub')
+                form_error = ui.label('').classes('oy-form-error')
                 username = ui.input('Usuario', value='').props(
                     'outlined autocomplete=username autofocus'
                 ).classes('w-full')
@@ -148,9 +166,10 @@ def login_page(next_path: str | None = None) -> None:
                     'outlined autocomplete=current-password'
                 ).classes('w-full')
                 password.on('keydown.enter', login)
-                submit = ui.button('Entrar al mostrador', on_click=login).props(
+                submit = ui.button('Entrar al mostrador').props(
                     'color=secondary unelevated no-caps'
                 ).classes('w-full q-mt-sm')
+                submit.on('click', login, js_handler=_FIELD_VALUES_JS)
                 ui.button('Crear cuenta', on_click=lambda: ui.navigate.to('/registro')).props(
                     'flat no-caps color=primary'
                 ).classes('w-full')
@@ -176,14 +195,19 @@ def register_page(next_path: str | None = None) -> None:
         ui.navigate.to(destination)
         return
 
-    async def register() -> None:
+    async def register(event=None) -> None:
+        typed = list(getattr(event, 'args', None) or [])
+        typed_user = typed[0] if len(typed) > 0 and typed[0] is not None else username.value
+        typed_password = typed[1] if len(typed) > 1 and typed[1] is not None else password.value
+        typed_confirm = typed[2] if len(typed) > 2 and typed[2] is not None else confirm.value
+        form_error.set_text('')
         submit.props('loading disable')
         try:
             account = await run.io_bound(
                 auth_service.register,
-                username.value,
-                password.value,
-                confirm.value,
+                typed_user,
+                typed_password,
+                typed_confirm,
             )
             token = str(uuid.uuid4())
             app.storage.user[PENDING_USER_KEY] = account
@@ -192,19 +216,22 @@ def register_page(next_path: str | None = None) -> None:
             callback_query = urlencode({'token': token, 'next': destination if destination != '/' else '/collection'})
             ui.navigate.to(f'/login/callback?{callback_query}')
         except ValueError as error:
-            ui.notify(str(error), type='negative')
+            form_error.set_text(str(error))
         finally:
             submit.props(remove='loading disable')
 
     with ui.column().classes('w-full gap-0'):
         with ui.row().classes('w-full items-center justify-between px-6 py-5'):
-            ui.label('OpenYuGi').classes('oy-logo').on('click', lambda: ui.navigate.to('/login'))
+            with ui.row().classes('oy-brand').on('click', lambda: ui.navigate.to('/login')):
+                ui.image('/brand/mark.svg').classes('oy-mark')
+                ui.label('OpenYuGi').classes('oy-logo')
             ui.label('gratis').classes('oy-mono text-xs text-gray-500')
         ui.separator()
         with ui.row().classes('w-full justify-center px-6 py-16'):
-            with ui.card().classes('w-full max-w-sm p-6 gap-3'):
+            with ui.card().classes('oy-register w-full max-w-sm p-6 gap-3'):
                 ui.label('Crear cuenta').classes('oy-display text-2xl')
                 ui.label('Es gratis. Tu colección no la ve nadie más.').classes('oy-sub')
+                form_error = ui.label('').classes('oy-form-error')
                 username = ui.input('Usuario', value='').props(
                     'outlined autocomplete=username autofocus'
                 ).classes('w-full')
@@ -215,9 +242,10 @@ def register_page(next_path: str | None = None) -> None:
                     'outlined autocomplete=new-password'
                 ).classes('w-full')
                 confirm.on('keydown.enter', register)
-                submit = ui.button('Crear cuenta', on_click=register).props(
+                submit = ui.button('Crear mi cuenta').props(
                     'color=secondary unelevated no-caps'
                 ).classes('w-full q-mt-sm')
+                submit.on('click', register, js_handler=_FIELD_VALUES_JS)
                 ui.button('Ya tengo cuenta', on_click=lambda: ui.navigate.to('/login')).props(
                     'flat no-caps color=primary'
                 ).classes('w-full')

@@ -9,7 +9,7 @@ from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY, AUTH_
 
 
 PUBLIC_PATHS = {'/login', '/registro', '/login/callback', '/_nicegui_ws'}
-PUBLIC_PREFIXES = ('/_nicegui/', '/.well-known/', '/fonts/')
+PUBLIC_PREFIXES = ('/_nicegui/', '/.well-known/', '/fonts/', '/brand/')
 
 
 def is_public_path(path: str) -> bool:

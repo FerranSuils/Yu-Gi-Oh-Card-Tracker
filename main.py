@@ -95,6 +95,7 @@ os.makedirs('data/img', exist_ok=True)
 os.makedirs('data/collections/storage', exist_ok=True)
 os.makedirs('data/flags', exist_ok=True)
 app.add_static_files('/fonts', 'static/fonts')
+app.add_static_files('/brand', 'static/brand')
 app.add_static_files('/images', 'data/images')
 app.add_static_files('/data/img', 'data/img') # Serve data/img for Art Match if used
 app.add_static_files('/sets', 'data/sets')
@@ -113,7 +114,7 @@ if __name__ == "__main__":
     # Disable reload to prevent restart loops when writing to data/ directory (images, db)
     ui.run(
         title='OpenYuGi — tu colección de Yu-Gi-Oh, gratis',
-        favicon='🃏',
+        favicon='/brand/mark.svg',
         host=os.environ.get('OPENYUGI_HOST', '0.0.0.0'),
         port=int(os.environ.get('OPENYUGI_PORT', '8080')),
         reload=False,

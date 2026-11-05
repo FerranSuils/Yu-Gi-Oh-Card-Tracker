@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 84" width="64" height="84" role="img" aria-label="OpenYuGi">
+  <rect x="1.5" y="1.5" width="61" height="81" fill="#F3EDE2" stroke="#1E1A15" stroke-width="2"/>
+  <g transform="translate(36,56)" fill="none" stroke="#9C2F24" stroke-width="1.6">
+    <rect x="0.8" y="0.8" width="22" height="22"/>
+    <path d="M11.8 0.8 V22.8 M0.8 11.8 H22.8"/>
+  </g>
+</svg>
