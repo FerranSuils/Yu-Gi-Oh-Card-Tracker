@@ -167,6 +167,7 @@ def test_existing_config_permissions_are_tightened_on_startup(tmp_path):
 def test_login_nicegui_assets_and_well_known_uris_are_public():
     assert is_public_path('/login')
     assert is_public_path('/registro')
+    assert is_public_path('/api/v1/register')
     assert is_public_path('/login/callback')
     assert is_public_path('/_nicegui_ws')
     assert is_public_path('/_nicegui/3.13.0/static/nicegui.js')

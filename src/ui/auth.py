@@ -32,7 +32,20 @@ _FIELD_VALUES_JS = '''(e) => {
     return;
   }
   if (error) error.textContent = 'Enviando…';
-  emit(...values);
+  fetch('/api/v1/register', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: values[0] || '', password: values[1] || '', confirm: values[2] || ''}),
+  }).then(async (response) => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (error) error.textContent = data.detail || 'No se ha podido crear la cuenta.';
+      return;
+    }
+    window.location.assign(data.next);
+  }).catch(() => {
+    if (error) error.textContent = 'No se ha podido crear la cuenta.';
+  });
 }'''
 
 
@@ -256,7 +269,7 @@ def register_page(next_path: str | None = None) -> None:
                     submit = ui.button('Crear mi cuenta').props(
                         'type=submit color=secondary unelevated no-caps'
                     ).classes('w-full q-mt-sm')
-                signup_form.on('submit', register, js_handler=_FIELD_VALUES_JS)
+                signup_form.on('submit', js_handler=_FIELD_VALUES_JS)
                 ui.button('Ya tengo cuenta', on_click=lambda: ui.navigate.to('/login')).props(
                     'flat no-caps color=primary'
                 ).classes('w-full')
