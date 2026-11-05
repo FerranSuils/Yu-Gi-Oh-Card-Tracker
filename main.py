@@ -109,7 +109,10 @@ if __name__ == "__main__":
     ui.run(
         title='OpenYuGi — colección de Yu-Gi-Oh en tu ordenador',
         favicon='🃏',
+        host=os.environ.get('OPENYUGI_HOST', '0.0.0.0'),
+        port=int(os.environ.get('OPENYUGI_PORT', '8080')),
         reload=False,
+        show=os.environ.get('OPENYUGI_OPEN_BROWSER', '1').lower() not in {'0', 'false', 'no'},
         storage_secret=get_storage_secret(),
         session_middleware_kwargs={
             'same_site': 'lax',
