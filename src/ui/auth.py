@@ -23,13 +23,15 @@ TEMP_AUTH_TOKEN_TTL_SECONDS = 60
 # Read the live input values at click time. NiceGUI's Python value can lag
 # behind the last keystroke when a test or a fast user submits immediately.
 _FIELD_VALUES_JS = '''(e) => {
-  const origin = (e && e.target && e.target.closest) ? e.target : (e && e.currentTarget) || document.body;
-  const card = origin.closest('.q-card') || document;
-  const values = [...card.querySelectorAll('input')].map((input) => input.value);
-  const error = card.querySelector('.oy-form-error');
+  if (e && e.preventDefault) e.preventDefault();
+  const form = (e && e.target && e.target.closest) ? (e.target.closest('form') || e.target) : document;
+  const values = [...form.querySelectorAll('input')].map((input) => input.value);
+  const error = form.querySelector('.oy-form-error');
   if (error && values.length >= 3 && values[1] !== values[2]) {
     error.textContent = 'Las contraseñas no coinciden.';
+    return;
   }
+  if (error) error.textContent = 'Enviando…';
   emit(values);
 }'''
 
@@ -237,21 +239,21 @@ def register_page(next_path: str | None = None) -> None:
             with ui.card().classes('oy-register w-full max-w-sm p-6 gap-3'):
                 ui.label('Crear cuenta').classes('oy-display text-2xl')
                 ui.label('Es gratis. Tu colección no la ve nadie más.').classes('oy-sub')
-                form_error = ui.label('').classes('oy-form-error')
-                username = ui.input('Usuario', value='').props(
-                    'outlined autocomplete=username autofocus'
-                ).classes('w-full')
-                password = ui.input('Contraseña', password=True, password_toggle_button=True).props(
-                    'outlined autocomplete=new-password'
-                ).classes('w-full')
-                confirm = ui.input('Repite la contraseña', password=True, password_toggle_button=True).props(
-                    'outlined autocomplete=new-password'
-                ).classes('w-full')
-                confirm.on('keydown.enter', register)
-                submit = ui.button('Crear mi cuenta').props(
-                    'color=secondary unelevated no-caps'
-                ).classes('w-full q-mt-sm')
-                submit.on('click', register, js_handler=_FIELD_VALUES_JS)
+                with ui.element('form').classes('w-full column gap-3') as signup_form:
+                    form_error = ui.label('').classes('oy-form-error')
+                    username = ui.input('Usuario', value='').props(
+                        'outlined autocomplete=username autofocus'
+                    ).classes('w-full')
+                    password = ui.input('Contraseña', password=True, password_toggle_button=True).props(
+                        'outlined autocomplete=new-password'
+                    ).classes('w-full')
+                    confirm = ui.input('Repite la contraseña', password=True, password_toggle_button=True).props(
+                        'outlined autocomplete=new-password'
+                    ).classes('w-full')
+                    submit = ui.button('Crear mi cuenta').props(
+                        'type=submit color=secondary unelevated no-caps'
+                    ).classes('w-full q-mt-sm')
+                signup_form.on('submit', register, js_handler=_FIELD_VALUES_JS)
                 ui.button('Ya tengo cuenta', on_click=lambda: ui.navigate.to('/login')).props(
                     'flat no-caps color=primary'
                 ).classes('w-full')
