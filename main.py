@@ -112,7 +112,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     # Disable reload to prevent restart loops when writing to data/ directory (images, db)
     ui.run(
-        title='OpenYuGi — colección de Yu-Gi-Oh en tu ordenador',
+        title='OpenYuGi — tu colección de Yu-Gi-Oh, gratis',
         favicon='🃏',
         host=os.environ.get('OPENYUGI_HOST', '0.0.0.0'),
         port=int(os.environ.get('OPENYUGI_PORT', '8080')),
