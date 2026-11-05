@@ -1,5 +1,7 @@
 import asyncio
 import os
+import time
+import uuid
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -43,8 +45,6 @@ async def register_account(body: RegisterRequest) -> Dict[str, str]:
         account = await _io_bound(auth_service.register, body.username, body.password, body.confirm)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    import time
-    import uuid
     token = str(uuid.uuid4())
     app.storage.user[PENDING_USER_KEY] = account
     app.storage.user[TEMP_AUTH_TOKEN_KEY] = token
