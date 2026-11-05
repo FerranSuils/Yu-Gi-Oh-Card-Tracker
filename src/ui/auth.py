@@ -23,8 +23,14 @@ TEMP_AUTH_TOKEN_TTL_SECONDS = 60
 # Read the live input values at click time. NiceGUI's Python value can lag
 # behind the last keystroke when a test or a fast user submits immediately.
 _FIELD_VALUES_JS = '''(e) => {
-  const card = e.currentTarget.closest('.q-card') || document;
-  emit([...card.querySelectorAll('input')].map((input) => input.value));
+  const origin = (e && e.target && e.target.closest) ? e.target : (e && e.currentTarget) || document.body;
+  const card = origin.closest('.q-card') || document;
+  const values = [...card.querySelectorAll('input')].map((input) => input.value);
+  const error = card.querySelector('.oy-form-error');
+  if (error && values.length >= 3 && values[1] !== values[2]) {
+    error.textContent = 'Las contraseñas no coinciden.';
+  }
+  emit(values);
 }'''
 
 
