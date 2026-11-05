@@ -151,6 +151,7 @@ def test_login_nicegui_assets_and_well_known_uris_are_public():
     assert is_public_path('/login/callback')
     assert is_public_path('/_nicegui_ws')
     assert is_public_path('/_nicegui/3.13.0/static/nicegui.js')
+    assert is_public_path('/fonts/fraunces-600.woff2')
     assert is_public_path('/.well-known/appspecific/com.chrome.devtools.json')
     assert not is_public_path('/.well-known-attacker/anything')
     assert not is_public_path('/')
