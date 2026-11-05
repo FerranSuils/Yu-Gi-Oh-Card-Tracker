@@ -127,9 +127,14 @@ async def complete_login_callback(token: str | None, next_path: str | None) -> s
     old_user_storage = storage.user
     signed_user = consume_signup_token(token) if isinstance(token, str) else None
     if signed_user:
-        old_user_storage[PENDING_USER_KEY] = signed_user
-        old_user_storage[TEMP_AUTH_TOKEN_KEY] = token
-        old_user_storage[TEMP_AUTH_TOKEN_EXPIRY_KEY] = time.time() + TEMP_AUTH_TOKEN_TTL_SECONDS
+        # Keep this browser session. Rotating it on a redirect drops the new cookie.
+        old_user_storage[AUTH_SESSION_KEY] = True
+        old_user_storage[AUTH_USER_KEY] = signed_user
+        old_user_storage[AUTH_REVISION_KEY] = auth_service.revision_for(signed_user)
+        old_user_storage.pop(TEMP_AUTH_TOKEN_KEY, None)
+        old_user_storage.pop(TEMP_AUTH_TOKEN_EXPIRY_KEY, None)
+        old_user_storage.pop(PENDING_USER_KEY, None)
+        return _safe_next_path(next_path)
     expected_token = old_user_storage.get(TEMP_AUTH_TOKEN_KEY)
     expires_at = old_user_storage.get(TEMP_AUTH_TOKEN_EXPIRY_KEY)
     if not (
