@@ -40,46 +40,46 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the signup form using the “Crear cuenta” button and inspect its visible fields.
+        # -> Open the registration form by selecting “Crear cuenta” and inspect the fields shown there.
         # Crear cuenta button
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Enter the existing username and matching passwords in the signup form, then submit it.
+        # -> Submit the signup form with the existing username “testsprite” and matching valid passwords.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("testsprite")
         
-        # -> Enter the existing username and matching passwords in the signup form, then submit it.
+        # -> Submit the signup form with the existing username “testsprite” and matching valid passwords.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Enter the existing username and matching passwords in the signup form, then submit it.
+        # -> Submit the signup form with the existing username “testsprite” and matching valid passwords.
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Enter the existing username and matching passwords in the signup form, then submit it.
+        # -> Submit the signup form with the existing username “testsprite” and matching valid passwords.
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> Submitting the signup form with the existing username displayed “Ese usuario ya existe.”
+        # --> The signup page reports “Ese usuario ya existe.” for the existing username.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The existing-username error is displayed.
-        await expect(page.locator("#app").nth(0)).to_contain_text("Ese usuario ya existe.", timeout=15000), "The existing-username error is displayed."
+        # Assert: The existing-username error is visible.
+        await expect(page.locator("#app").nth(0)).to_contain_text("Ese usuario ya existe.", timeout=15000), "The existing-username error is visible."
         
-        # --> The signup form remained visible after submission.
-        await page.get_by_role("textbox", name="Usuario").nth(0).scroll_into_view_if_needed()
+        # --> The registration form remains visible after the existing-username error.
+        await page.get_by_role("button", name="Crear mi cuenta").nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The signup form's username field remains visible.
-        await expect(page.get_by_role("textbox", name="Usuario").nth(0)).to_be_visible(timeout=15000), "The signup form's username field remains visible."
+        # Assert: The registration form submit control remains visible.
+        await expect(page.get_by_role("button", name="Crear mi cuenta").nth(0)).to_be_visible(timeout=15000), "The registration form submit control remains visible."
         await asyncio.sleep(5)
 
     finally:

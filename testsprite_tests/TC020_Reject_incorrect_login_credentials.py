@@ -40,27 +40,35 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Enter invalid credentials, submit the login form, and check whether an authentication error appears while the login form remains visible.
+        # -> Enter invalid values in the username and password fields, then submit the login form using “Entrar al mostrador.”
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("invalid-user-qa")
         
-        # -> Enter invalid credentials, submit the login form, and check whether an authentication error appears while the login form remains visible.
+        # -> Enter invalid values in the username and password fields, then submit the login form using “Entrar al mostrador.”
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("wrong-password-qa")
         
-        # -> Enter invalid credentials, submit the login form, and check whether an authentication error appears while the login form remains visible.
+        # -> Enter invalid values in the username and password fields, then submit the login form using “Entrar al mostrador.”
         # Entrar al mostrador button
         elem = page.get_by_role("button", name="Entrar al mostrador")
         await elem.click(timeout=10000)
         
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Assertions to verify final state
+        
+        # --> The page displays “Usuario o contraseña incorrectos.” after invalid credentials are submitted.
+        # Assert-outcome: not verified — the export-time check could not be evaluated
+        # Assert: The authentication error is displayed.
+        await expect(page.locator("#app").nth(0)).to_contain_text("Usuario o contrase\u00f1a incorrectos.", timeout=15000), "The authentication error is displayed."
+        
+        # --> The login form remains visible after the failed login attempt.
+        await page.get_by_role("button", name="Entrar al mostrador").nth(0).scroll_into_view_if_needed()
+        # Assert-outcome: not verified — the export-time check could not be evaluated
+        # Assert: The login form remains visible.
+        await expect(page.get_by_role("button", name="Entrar al mostrador").nth(0)).to_be_visible(timeout=15000), "The login form remains visible."
         await asyncio.sleep(5)
 
     finally:

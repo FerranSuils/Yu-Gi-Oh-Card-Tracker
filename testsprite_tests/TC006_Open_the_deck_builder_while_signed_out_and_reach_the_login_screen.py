@@ -40,7 +40,7 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the deck builder route and verify that sign-in appears with the deck destination preserved.
+        # -> Open the deck-builder page and verify whether it redirects to sign-in with the next destination preserved.
         await page.goto("http://localhost:8206/decks")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
@@ -49,15 +49,15 @@ async def run_test():
         
         # --> Assertions to verify final state
         
-        # --> Visiting the deck builder while signed out redirects to the sign-in page.
+        # --> Opening `/decks` while signed out redirects to the sign-in page.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The visitor is redirected to the sign-in page.
-        await expect(page).to_have_url(re.compile("/login"), timeout=15000), "The visitor is redirected to the sign-in page."
+        # Assert: The URL shows the sign-in page.
+        await expect(page).to_have_url(re.compile("/login"), timeout=15000), "The URL shows the sign-in page."
         
-        # --> The sign-in redirect preserves `/decks` as the next destination.
+        # --> The sign-in URL preserves `/decks` as the next destination.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The sign-in URL preserves `/decks` as the next destination.
-        await expect(page).to_have_url(re.compile("next=%2Fdecks"), timeout=15000), "The sign-in URL preserves `/decks` as the next destination."
+        # Assert: The URL preserves `/decks` as the next destination.
+        await expect(page).to_have_url(re.compile("next=%2Fdecks"), timeout=15000), "The URL preserves `/decks` as the next destination."
         await asyncio.sleep(5)
 
     finally:

@@ -40,7 +40,7 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the home page while signed out and verify whether the app redirects to sign-in with the intended destination preserved.
+        # -> Open the protected home page at `/` and check whether sign-in appears with the intended destination preserved.
         await page.goto("http://localhost:8206/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
@@ -49,13 +49,13 @@ async def run_test():
         
         # --> Assertions to verify final state
         
-        # --> The Spanish sign-in page is displayed after the protected home page is opened while signed out.
-        await page.get_by_role("textbox", name="Usuario").nth(0).scroll_into_view_if_needed()
+        # --> The sign-in page is displayed after the protected-home redirect.
+        await page.get_by_role("button", name="Entrar al mostrador").nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The sign-in page displays the username field.
-        await expect(page.get_by_role("textbox", name="Usuario").nth(0)).to_be_visible(timeout=15000), "The sign-in page displays the username field."
+        # Assert: The sign-in page is displayed.
+        await expect(page.get_by_role("button", name="Entrar al mostrador").nth(0)).to_be_visible(timeout=15000), "The sign-in page is displayed."
         
-        # --> The sign-in URL preserves `/` as the intended destination.
+        # --> The intended destination `/` is preserved after the redirect to sign-in.
         # Assert-outcome: not verified — the export-time check could not be evaluated
         # Assert: The sign-in URL preserves `/` as the intended destination.
         await expect(page).to_have_url(re.compile("next=%2F"), timeout=15000), "The sign-in URL preserves `/` as the intended destination."

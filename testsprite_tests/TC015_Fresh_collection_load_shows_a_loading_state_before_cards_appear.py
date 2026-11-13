@@ -40,24 +40,24 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Sign in with the supplied account using the “Entrar al mostrador” button.
+        # -> Sign in using the provided test account and inspect the collection page for its loading state and final view.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("testsprite")
         
-        # -> Sign in with the supplied account using the “Entrar al mostrador” button.
+        # -> Sign in using the provided test account and inspect the collection page for its loading state and final view.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Sign in with the supplied account using the “Entrar al mostrador” button.
+        # -> Sign in using the provided test account and inspect the collection page for its loading state and final view.
         # Entrar al mostrador button
         elem = page.get_by_role("button", name="Entrar al mostrador")
         await elem.click(timeout=10000)
         
-        # -> Open “Colección” and observe whether its loading state resolves to the collection view.
+        # -> Open the visible “Colección” page and observe whether loading resolves into its collection view.
         # Colección
         elem = page.get_by_text("Colección").first
         await elem.click(timeout=10000)
@@ -65,10 +65,9 @@ async def run_test():
         # --> Assertions to verify final state
         
         # --> The collection view is displayed.
-        await page.locator("div").filter(has_text=re.compile(r"^Collection$")).first.nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
         # Assert: The collection view is displayed.
-        await expect(page.locator("div").filter(has_text=re.compile(r"^Collection$")).first.nth(0)).to_be_visible(timeout=15000), "The collection view is displayed."
+        await expect(page.get_by_role("main").nth(0)).to_contain_text("Collection", timeout=15000), "The collection view is displayed."
         await asyncio.sleep(5)
 
     finally:

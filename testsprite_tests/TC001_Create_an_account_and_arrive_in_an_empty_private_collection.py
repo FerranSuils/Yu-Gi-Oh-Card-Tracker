@@ -40,48 +40,48 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the “Crear cuenta” registration form.
+        # -> Open the registration form using “Crear cuenta” and inspect the fields it presents.
         # Crear cuenta button
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Enter a unique username and matching passwords in the registration form, then create the account.
+        # -> Fill the registration form with a fresh username and matching passwords, then submit using “Crear mi cuenta”.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("ts202611091234")
+        await elem.fill("qauser726")
         
-        # -> Enter a unique username and matching passwords in the registration form, then create the account.
+        # -> Fill the registration form with a fresh username and matching passwords, then submit using “Crear mi cuenta”.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("TestSprite-2026!")
+        await elem.fill("OpenYuGi2026!")
         
-        # -> Enter a unique username and matching passwords in the registration form, then create the account.
+        # -> Fill the registration form with a fresh username and matching passwords, then submit using “Crear mi cuenta”.
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("TestSprite-2026!")
+        await elem.fill("OpenYuGi2026!")
         
-        # -> Submit the registration form using “Crear mi cuenta” and verify the resulting page.
+        # -> Fill the registration form with a fresh username and matching passwords, then submit using “Crear mi cuenta”.
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> The new account is signed in on the collection page.
+        # --> The user lands on the collection page.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The new account should land on the collection page.
-        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The new account should land on the collection page."
-        # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The signed-in page should show the new username.
-        await expect(page.locator("#app").nth(0)).to_contain_text("ts202611091234", timeout=15000), "The signed-in page should show the new username."
+        # Assert: The URL contains /collection.
+        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The URL contains /collection."
         
-        # --> The new account's collection is empty.
+        # --> The newly registered account is signed in with an empty collection.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The collection should show zero unique cards.
-        await expect(page.locator("#app").nth(0)).to_contain_text("Unique Cards 0", timeout=15000), "The collection should show zero unique cards."
+        # Assert: The signed-in account is qauser726.
+        await expect(page.locator("#app").nth(0)).to_contain_text("qauser726", timeout=15000), "The signed-in account is qauser726."
+        # Assert-outcome: not verified — the export-time check could not be evaluated
+        # Assert: The collection’s total quantity is 0.
+        await expect(page.locator("#app").nth(0)).to_contain_text("Total QTY 0", timeout=15000), "The collection\u2019s total quantity is 0."
         await asyncio.sleep(5)
 
     finally:

@@ -45,35 +45,35 @@ async def run_test():
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Fill the registration form with a new username and matching passwords, then submit using “Crear mi cuenta.”
+        # -> Complete the registration form with a fresh username and matching password, then submit using “Crear mi cuenta.”
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("ts20261109open")
+        await elem.fill("qauser20261113")
         
-        # -> Fill the registration form with a new username and matching passwords, then submit using “Crear mi cuenta.”
+        # -> Complete the registration form with a fresh username and matching password, then submit using “Crear mi cuenta.”
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("TestSprite-2026!")
+        await elem.fill("QaTest-2026!")
         
-        # -> Fill the registration form with a new username and matching passwords, then submit using “Crear mi cuenta.”
+        # -> Complete the registration form with a fresh username and matching password, then submit using “Crear mi cuenta.”
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("TestSprite-2026!")
+        await elem.fill("QaTest-2026!")
         
-        # -> Fill the registration form with a new username and matching passwords, then submit using “Crear mi cuenta.”
+        # -> Complete the registration form with a fresh username and matching password, then submit using “Crear mi cuenta.”
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> The collection page is open.
+        # --> The Collection catalogue is displayed.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The collection page is open.
-        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The collection page is open."
+        # Assert: The URL should show the Collection catalogue.
+        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The URL should show the Collection catalogue."
         await asyncio.sleep(5)
 
     finally:

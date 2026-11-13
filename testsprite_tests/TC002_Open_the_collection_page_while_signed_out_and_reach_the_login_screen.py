@@ -40,7 +40,7 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the private collection page and verify it redirects to sign in with the collection destination preserved.
+        # -> Open the private collection page and verify whether the signed-out visitor is redirected to sign-in with the collection destination preserved.
         await page.goto("http://localhost:8206/collection")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
@@ -49,15 +49,10 @@ async def run_test():
         
         # --> Assertions to verify final state
         
-        # --> The signed-out visitor is redirected to the sign-in page.
+        # --> The signed-out visitor is redirected to sign-in with the collection destination preserved.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The URL points to the sign-in page.
-        await expect(page).to_have_url(re.compile("/login"), timeout=15000), "The URL points to the sign-in page."
-        
-        # --> The sign-in URL preserves `/collection` as the next destination.
-        # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The URL preserves `/collection` as the next destination.
-        await expect(page).to_have_url(re.compile("next=%2Fcollection"), timeout=15000), "The URL preserves `/collection` as the next destination."
+        # Assert: The sign-in URL preserves the collection destination.
+        await expect(page).to_have_url(re.compile("/login\\?next=%2Fcollection"), timeout=15000), "The sign-in URL preserves the collection destination."
         await asyncio.sleep(5)
 
     finally:

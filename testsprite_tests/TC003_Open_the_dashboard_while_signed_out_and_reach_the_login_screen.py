@@ -40,7 +40,7 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the site's root page and verify whether it redirects to sign-in with the dashboard destination preserved.
+        # -> Open the app’s root page while signed out and verify whether sign-in appears with a dashboard destination preserved.
         await page.goto("http://localhost:8206/")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
@@ -49,15 +49,15 @@ async def run_test():
         
         # --> Assertions to verify final state
         
-        # --> The signed-out visitor was redirected to the sign-in page.
+        # --> The signed-out visitor is redirected to the sign-in page.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The URL indicates the sign-in page.
-        await expect(page).to_have_url(re.compile("/login"), timeout=15000), "The URL indicates the sign-in page."
+        # Assert: The URL shows the sign-in page.
+        await expect(page).to_have_url(re.compile("/login"), timeout=15000), "The URL shows the sign-in page."
         
-        # --> The sign-in redirect preserved the requested root destination as `next=%2F`.
+        # --> The sign-in URL preserves `/` as the next destination.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The URL preserves the requested destination in the next parameter.
-        await expect(page).to_have_url(re.compile("next=%2F"), timeout=15000), "The URL preserves the requested destination in the next parameter."
+        # Assert: The URL preserves `/` as the next destination.
+        await expect(page).to_have_url(re.compile("next=%2F"), timeout=15000), "The URL preserves `/` as the next destination."
         await asyncio.sleep(5)
 
     finally:

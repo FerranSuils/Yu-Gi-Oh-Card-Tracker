@@ -40,45 +40,59 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Wait for the page to finish connecting, then open the “Crear cuenta” registration form.
+        # -> Open the registration form using “Crear cuenta” and inspect the fields it displays.
         # Crear cuenta button
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Fill the username and both password fields, then submit with “Crear mi cuenta”.
+        # -> Enter a fresh eligible username and matching passwords, then submit the registration form.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("ts202611090001")
+        await elem.fill("qauser20261113")
         
-        # -> Fill the username and both password fields, then submit with “Crear mi cuenta”.
+        # -> Enter a fresh eligible username and matching passwords, then submit the registration form.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Fill the username and both password fields, then submit with “Crear mi cuenta”.
+        # -> Enter a fresh eligible username and matching passwords, then submit the registration form.
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Fill the username and both password fields, then submit with “Crear mi cuenta”.
+        # -> Enter a fresh eligible username and matching passwords, then submit the registration form.
+        # Crear mi cuenta button
+        elem = page.get_by_role("button", name="Crear mi cuenta")
+        await elem.click(timeout=10000)
+        
+        # -> Enter a different eligible username in the “Usuario” field and check whether username suggestions appear.
+        # Usuario text field
+        elem = page.get_by_role("textbox", name="Usuario")
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("qauser20261113a")
+        
+        # -> Submit the registration form with the new username and verify the result.
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> The user lands on the collection page.
+        # --> The new account is signed in on the collection page.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The user is on the collection page.
-        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The user is on the collection page."
+        # Assert: The new account should land on the collection page.
+        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The new account should land on the collection page."
+        # Assert-outcome: not verified — the export-time check could not be evaluated
+        # Assert: The collection page should show the signed-in account name.
+        await expect(page.locator("#app").nth(0)).to_contain_text("qauser20261113a", timeout=15000), "The collection page should show the signed-in account name."
         
-        # --> The new account’s collection is empty, and signup described it as private.
+        # --> The collection has no owned cards.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The new account’s collection has no owned cards.
-        await expect(page.locator("#app").nth(0)).to_contain_text("Total QTY 0", timeout=15000), "The new account\u2019s collection has no owned cards."
+        # Assert: The collection should show zero owned cards.
+        await expect(page.locator("#app").nth(0)).to_contain_text("Total QTY 0", timeout=15000), "The collection should show zero owned cards."
         await asyncio.sleep(5)
 
     finally:

@@ -40,43 +40,50 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the registration form using “Crear cuenta.”
+        # -> Open the registration form by selecting “Crear cuenta.”
         # Crear cuenta button
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Fill the registration form with a unique timestamp-style username and matching passwords, then submit “Crear mi cuenta.”
+        # -> Enter a fresh lowercase username and matching passwords in the registration form, then create the account.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("ts20261109114732")
+        await elem.fill("qaopenyu26")
         
-        # -> Fill the registration form with a unique timestamp-style username and matching passwords, then submit “Crear mi cuenta.”
+        # -> Enter a fresh lowercase username and matching passwords in the registration form, then create the account.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Fill the registration form with a unique timestamp-style username and matching passwords, then submit “Crear mi cuenta.”
+        # -> Enter a fresh lowercase username and matching passwords in the registration form, then create the account.
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Fill the registration form with a unique timestamp-style username and matching passwords, then submit “Crear mi cuenta.”
+        # -> Enter a fresh lowercase username and matching passwords in the registration form, then create the account.
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
+        # -> Turn on the “Owned” filter and verify the new account’s collection contains no owned-card entries.
+        # Owned toggle
+        elem = page.get_by_role("switch", name="Owned")
+        await elem.click(timeout=10000)
+        
         # --> Assertions to verify final state
         
-        # --> The newly registered account landed on its collection page.
+        # --> The new account’s collection is empty.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The new account should land on the collection page.
-        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The new account should land on the collection page."
+        # Assert: The collection shows zero unique cards.
+        await expect(page.locator("xpath=/html/body/div[1]/div/div/main/div/div[1]/div[3]/div[4]/div[1]/div[3]/div[2]").nth(0)).to_have_text("0", timeout=15000), "The collection shows zero unique cards."
+        
+        # --> The new account lands on its collection page.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The collection page should show the newly registered account.
-        await expect(page.locator("#app").nth(0)).to_contain_text("ts20261109114732", timeout=15000), "The collection page should show the newly registered account."
+        # Assert: The account is on the collection page.
+        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The account is on the collection page."
         await asyncio.sleep(5)
 
     finally:

@@ -40,7 +40,7 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the protected deck builder at /decks and check whether sign-in appears with the intended destination preserved.
+        # -> Open the protected deck builder at `/decks` and verify that sign-in appears with the intended destination retained.
         await page.goto("http://localhost:8206/decks")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
@@ -49,16 +49,16 @@ async def run_test():
         
         # --> Assertions to verify final state
         
-        # --> The Spanish sign-in form is displayed after opening the protected deck builder.
-        await page.get_by_role("textbox", name="Usuario").nth(0).scroll_into_view_if_needed()
+        # --> The sign-in page is displayed.
+        await page.get_by_role("button", name="Entrar al mostrador").nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The sign-in form is displayed.
-        await expect(page.get_by_role("textbox", name="Usuario").nth(0)).to_be_visible(timeout=15000), "The sign-in form is displayed."
+        # Assert: The sign-in button is visible.
+        await expect(page.get_by_role("button", name="Entrar al mostrador").nth(0)).to_be_visible(timeout=15000), "The sign-in button is visible."
         
-        # --> The sign-in URL preserves `/decks` as the destination after sign-in.
+        # --> The intended destination `/decks` is preserved for after sign-in.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The URL preserves `/decks` as the destination after sign-in.
-        await expect(page).to_have_url(re.compile("next=%2Fdecks"), timeout=15000), "The URL preserves `/decks` as the destination after sign-in."
+        # Assert: The URL preserves `/decks` as the intended destination.
+        await expect(page).to_have_url(re.compile("next=%2Fdecks"), timeout=15000), "The URL preserves `/decks` as the intended destination."
         await asyncio.sleep(5)
 
     finally:

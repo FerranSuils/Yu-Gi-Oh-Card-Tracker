@@ -40,39 +40,39 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Enter the provided username and password, then submit the login form with “Entrar al mostrador.”
+        # -> Enter the provided username and password, then submit the login form using “Entrar al mostrador.”
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("testsprite")
         
-        # -> Enter the provided username and password, then submit the login form with “Entrar al mostrador.”
+        # -> Enter the provided username and password, then submit the login form using “Entrar al mostrador.”
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Enter the provided username and password, then submit the login form with “Entrar al mostrador.”
+        # -> Enter the provided username and password, then submit the login form using “Entrar al mostrador.”
         # Entrar al mostrador button
         elem = page.get_by_role("button", name="Entrar al mostrador")
         await elem.click(timeout=10000)
         
-        # -> Open the “Colección” page from the signed-in dashboard.
-        # Colección
-        elem = page.get_by_text("Colección").first
-        await elem.click(timeout=10000)
-        
-        # -> Open the “Colección” page from the signed-in navigation and verify that its view appears.
+        # -> Open “Colección” from the signed-in navigation and verify the collection page appears.
         # Colección
         elem = page.get_by_text("Colección").first
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> The signed-in session remains active after reload, with “testsprite” shown in the header.
+        # --> The signed-in account remains active after the collection page reloads.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The signed-in account name is visible in the page header.
-        await expect(page.locator("#app").nth(0)).to_contain_text("testsprite", timeout=15000), "The signed-in account name is visible in the page header."
+        # Assert: The signed-in account name remains visible in the header.
+        await expect(page.locator("#app").nth(0)).to_contain_text("testsprite", timeout=15000), "The signed-in account name remains visible in the header."
+        
+        # --> The collection page remains displayed after reloading.
+        # Assert-outcome: not verified — the export-time check could not be evaluated
+        # Assert: The collection page is displayed.
+        await expect(page.locator("xpath=/html/body/div[1]/div/div/main/div/div[1]/div[2]/div[1]").nth(0)).to_have_text("Colecci\u00f3n", timeout=15000), "The collection page is displayed."
         await asyncio.sleep(5)
 
     finally:

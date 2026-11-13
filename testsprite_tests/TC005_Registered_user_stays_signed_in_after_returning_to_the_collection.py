@@ -40,44 +40,39 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Enter the provided username and password, then submit using “Entrar al mostrador.”
+        # -> Enter the supplied username and password, then submit the login form using “Entrar al mostrador.”
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("testsprite")
         
-        # -> Enter the provided username and password, then submit using “Entrar al mostrador.”
+        # -> Enter the supplied username and password, then submit the login form using “Entrar al mostrador.”
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Enter the provided username and password, then submit using “Entrar al mostrador.”
+        # -> Enter the supplied username and password, then submit the login form using “Entrar al mostrador.”
         # Entrar al mostrador button
         elem = page.get_by_role("button", name="Entrar al mostrador")
         await elem.click(timeout=10000)
         
-        # -> Submit the visible login form with “Entrar al mostrador” and check whether the dashboard opens.
-        # Entrar al mostrador button
-        elem = page.get_by_role("button", name="Entrar al mostrador")
-        await elem.click(timeout=10000)
-        
-        # -> Open the “Colección” page from the navigation and verify it loads while signed in.
+        # -> Open “Colección” and confirm the collection page finishes loading.
         # Colección
         elem = page.get_by_text("Colección").first
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> The user remains signed in as testsprite after the collection page reloads.
+        # --> The signed-in user remains testsprite after reloading.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The signed-in username testsprite should remain visible.
-        await expect(page.locator("#app").nth(0)).to_contain_text("testsprite", timeout=15000), "The signed-in username testsprite should remain visible."
+        # Assert: The page identifies the signed-in user as testsprite.
+        await expect(page.locator("#app").nth(0)).to_contain_text("testsprite", timeout=15000), "The page identifies the signed-in user as testsprite."
         
-        # --> The Colección page remains displayed after reload.
+        # --> The collection page remains displayed after reloading.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The collection page should remain open.
-        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The collection page should remain open."
+        # Assert: The collection page remains open.
+        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The collection page remains open."
         await asyncio.sleep(5)
 
     finally:

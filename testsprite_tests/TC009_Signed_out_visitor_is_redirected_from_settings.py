@@ -40,7 +40,7 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the protected /settings page and check whether sign-in appears with the intended destination preserved.
+        # -> Open the protected settings page while signed out and inspect the resulting sign-in page and URL for a preserved return destination.
         await page.goto("http://localhost:8206/settings")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
@@ -49,16 +49,16 @@ async def run_test():
         
         # --> Assertions to verify final state
         
-        # --> The Spanish sign-in page is displayed.
-        await page.get_by_role("textbox", name="Usuario").nth(0).scroll_into_view_if_needed()
+        # --> The sign-in page is displayed after the signed-out visit to settings.
+        await page.get_by_role("button", name="Entrar al mostrador").nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The sign-in form is visible.
-        await expect(page.get_by_role("textbox", name="Usuario").nth(0)).to_be_visible(timeout=15000), "The sign-in form is visible."
+        # Assert: The sign-in button is visible.
+        await expect(page.get_by_role("button", name="Entrar al mostrador").nth(0)).to_be_visible(timeout=15000), "The sign-in button is visible."
         
-        # --> The sign-in URL preserves /settings as the intended destination.
+        # --> The sign-in URL preserves `/settings` as the intended destination.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The sign-in URL preserves /settings as the next destination.
-        await expect(page).to_have_url(re.compile("next=%2Fsettings"), timeout=15000), "The sign-in URL preserves /settings as the next destination."
+        # Assert: The URL preserves `/settings` as the intended destination.
+        await expect(page).to_have_url(re.compile("next=%2Fsettings"), timeout=15000), "The URL preserves `/settings` as the intended destination."
         await asyncio.sleep(5)
 
     finally:

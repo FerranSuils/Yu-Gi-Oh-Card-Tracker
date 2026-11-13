@@ -493,7 +493,7 @@
       },
       {
         "type": "assertion",
-        "description": "Verify the collection view is eventually displayed"
+        "description": "Verify the collection view is eventually displayed A loading state may be too brief to see: an empty collection (\"No items found.\") with no error notification also passes."
       }
     ],
     "priority": "Low"
@@ -510,7 +510,7 @@
       },
       {
         "type": "action",
-        "description": "Fill in the username field with an invalid username"
+        "description": "Fill in the username field with \"a!\" (two characters, with a symbol: not allowed)"
       },
       {
         "type": "action",
@@ -678,5 +678,433 @@
       }
     ],
     "priority": "Low"
+  },
+  {
+    "id": "TC021",
+    "title": "Public shop map loads with OpenStreetMap tiles while signed out",
+    "description": "The public map at /mapa renders a Leaflet map with OpenStreetMap attribution without signing in.",
+    "category": "Shop map",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /mapa without signing in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a map is displayed and the attribution mentions OpenStreetMap"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the page did not redirect to /login"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Deck list check reports missing cards for an empty stock",
+    "description": "Pasting a deck list on /lista shows each card with what is in stock and what is missing.",
+    "category": "Deck list",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /lista"
+      },
+      {
+        "type": "action",
+        "description": "Type \"3 Dark Hole\" and on a new line \"2x Raigeki\" in the Lista textarea"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Comprobar stock\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a row \"3 × Dark Hole\" and a row \"2 × Raigeki\" appear"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the rows say the cards are missing (Faltan 3, Faltan 2) or show stock lines with prices"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Deck list check warns when the list is empty",
+    "description": "Checking stock with an empty list shows a warning instead of results.",
+    "category": "Deck list",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /lista"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Comprobar stock\" leaving the textarea empty"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a warning asks to paste a list with one card per line"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Reports page renders for a shop account",
+    "description": "The reports page at /informes loads with period controls and totals and no error toast.",
+    "category": "Reports",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /informes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the page shows a reports heading with income or sales totals"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no error notification appears"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Create a free event and see it listed",
+    "description": "A shop can create a tournament on /eventos and it appears in the list.",
+    "category": "Events",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /eventos"
+      },
+      {
+        "type": "action",
+        "description": "Create a new event with the name \"Torneo QA\" using the form on the page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an event named \"Torneo QA\" appears on the page"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Add a customer and find it in the customer list",
+    "description": "A shop can add a customer on /clientes and see it afterwards.",
+    "category": "Customers",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /clientes"
+      },
+      {
+        "type": "action",
+        "description": "Add a new customer with the name \"Cliente QA\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify \"Cliente QA\" appears in the customer list"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Point of sale page loads with an empty ticket",
+    "description": "The counter at /tpv loads with a search box and an empty ticket.",
+    "category": "Point of sale",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /tpv"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the page shows a card search and a ticket or cart area with a zero total"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no error notification appears"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Orders page loads for a shop account",
+    "description": "The orders page at /pedidos loads and shows an empty state or a list of orders.",
+    "category": "Orders",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /pedidos"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the orders page renders with its heading and no error notification"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Settings show the shop, API key and map sections",
+    "description": "Settings for a shop account show the shop data, the read-only API key section and the map section.",
+    "category": "Settings",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /settings"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the shop name field contains \"Tienda QA\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a section \"API de lectura\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a button to appear on or be removed from the map is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Read-only API refuses requests without a key",
+    "description": "The shop API answers 401 when no key is sent.",
+    "category": "API",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/v1/shop/stock without an Authorization header"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the page shows an error about the key (for example \"Clave no válida.\") and no stock data"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "CSV suite page loads with import and export options",
+    "description": "The CSV page loads and offers import and export.",
+    "category": "CSV",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with testsprite"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with TestSprite-2026!"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Entrar al mostrador\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard loads signed in"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /csv"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the page shows options to import and to export CSV files and no error notification"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Signed-out visitor is redirected from the point of sale",
+    "description": "Private shop pages need a session.",
+    "category": "Authentication",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /tpv without signing in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the browser ends on the login screen"
+      }
+    ]
   }
 ]

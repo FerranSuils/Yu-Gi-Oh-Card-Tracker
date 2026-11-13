@@ -40,34 +40,39 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Enter the supplied username and password in the login form.
+        # -> Enter the provided username and password, then submit with “Entrar al mostrador.”
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("testsprite")
         
-        # -> Enter the supplied username and password in the login form.
+        # -> Enter the provided username and password, then submit with “Entrar al mostrador.”
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("TestSprite-2026!")
         
-        # -> Submit the login form with “Entrar al mostrador” and verify that the signed-in dashboard appears.
+        # -> Enter the provided username and password, then submit with “Entrar al mostrador.”
         # Entrar al mostrador button
         elem = page.get_by_role("button", name="Entrar al mostrador")
         await elem.click(timeout=10000)
         
+        # -> Open “Colección” and verify the collection page is displayed with the signed-in account still visible.
+        # Colección
+        elem = page.get_by_text("Colección").first
+        await elem.click(timeout=10000)
+        
         # --> Assertions to verify final state
         
-        # --> The user remains signed in after submitting the login form.
+        # --> The account remains signed in as testsprite on the collection page.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: Expected the username field to be hidden after sign-in.
-        await expect(page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/label[1]/div/div/div/input").nth(0)).not_to_be_visible(timeout=15000), "Expected the username field to be hidden after sign-in."
+        # Assert: The signed-in account name testsprite is visible.
+        await expect(page.locator("#app").nth(0)).to_contain_text("testsprite", timeout=15000), "The signed-in account name testsprite is visible."
         
-        # --> The collection page is displayed after navigating to it.
+        # --> The collection page is displayed.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: Expected the URL to contain /collection.
-        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "Expected the URL to contain /collection."
+        # Assert: The current page is the collection page.
+        await expect(page).to_have_url(re.compile("/collection"), timeout=15000), "The current page is the collection page."
         await asyncio.sleep(5)
 
     finally:

@@ -10,6 +10,7 @@ import re
 import secrets
 import stat
 import threading
+import time
 from pathlib import Path
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -26,6 +27,7 @@ MAX_USERNAME_LENGTH = 64
 USERNAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{2,31}")
 STORAGE_SECRET_PATH = Path("data/.storage_secret")
 _ACCOUNTS_LOCK = threading.Lock()
+REPLACE_ATTEMPTS = 8   # about 1.4 s in all
 
 
 class AuthService:
@@ -130,7 +132,15 @@ class AuthService:
             os.chmod(temporary, stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             pass
-        os.replace(temporary, self.accounts_file)
+        # Windows refuses to replace a file while a login is reading it: wait for the reader, briefly.
+        for attempt in range(REPLACE_ATTEMPTS):
+            try:
+                os.replace(temporary, self.accounts_file)
+                return
+            except PermissionError:
+                if attempt == REPLACE_ATTEMPTS - 1:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
 
     def update_credentials(
         self,

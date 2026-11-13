@@ -40,42 +40,42 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Open the signup form using “Crear cuenta” and inspect its visible fields.
+        # -> Open the registration form using “Crear cuenta” and inspect the fields shown.
         # Crear cuenta button
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Enter a unique username and different password and confirmation values, then submit the signup form.
+        # -> Enter a fresh lowercase username and different password and confirmation values, then submit the registration form.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("ts202611091423")
+        await elem.fill("qauser813")
         
-        # -> Enter a unique username and different password and confirmation values, then submit the signup form.
+        # -> Enter a fresh lowercase username and different password and confirmation values, then submit the registration form.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("TestSprite-2026!")
+        await elem.fill("Abcd1234!")
         
-        # -> Enter a unique username and different password and confirmation values, then submit the signup form.
+        # -> Enter a fresh lowercase username and different password and confirmation values, then submit the registration form.
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("TestSprite-2027!")
+        await elem.fill("Abcd1235!")
         
-        # -> Enter a unique username and different password and confirmation values, then submit the signup form.
+        # -> Enter a fresh lowercase username and different password and confirmation values, then submit the registration form.
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> Submitting mismatched passwords displays the password mismatch error.
+        # --> The registration page displays “Las contraseñas no coinciden.” after mismatched passwords are submitted.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The password mismatch error is visible.
-        await expect(page.locator("#app").nth(0)).to_contain_text("Las contrase\u00f1as no coinciden.", timeout=15000), "The password mismatch error is visible."
+        # Assert: The password confirmation mismatch error is visible.
+        await expect(page.locator("#app").nth(0)).to_contain_text("Las contrase\u00f1as no coinciden.", timeout=15000), "The password confirmation mismatch error is visible."
         
-        # --> The registration form remains visible after submission.
+        # --> The registration form remains visible after the password mismatch.
         await page.get_by_role("button", name="Crear mi cuenta").nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
         # Assert: The registration form remains visible.

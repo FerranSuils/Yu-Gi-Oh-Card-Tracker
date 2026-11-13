@@ -40,46 +40,46 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Wait for the page to finish connecting, then open the registration form with “Crear cuenta”.
+        # -> Open the registration form using “Crear cuenta” and inspect its fields.
         # Crear cuenta button
         elem = page.get_by_role("button", name="Crear cuenta")
         await elem.click(timeout=10000)
         
-        # -> Enter a unique username and matching short passwords, then submit the registration form.
+        # -> Enter a fresh username and matching short passwords, then submit the registration form to check its validation response.
         # Usuario text field
         elem = page.get_by_role("textbox", name="Usuario")
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("ts20261109a")
+        await elem.fill("qauser20261113")
         
-        # -> Enter a unique username and matching short passwords, then submit the registration form.
+        # -> Enter a fresh username and matching short passwords, then submit the registration form to check its validation response.
         # Contraseña password field
         elem = page.get_by_role("textbox", name="Contraseña", exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("abc")
         
-        # -> Enter a unique username and matching short passwords, then submit the registration form.
+        # -> Enter a fresh username and matching short passwords, then submit the registration form to check its validation response.
         # Repite la contraseña password field
         elem = page.get_by_role("textbox", name="Repite la contraseña")
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("abc")
         
-        # -> Enter a unique username and matching short passwords, then submit the registration form.
+        # -> Enter a fresh username and matching short passwords, then submit the registration form to check its validation response.
         # Crear mi cuenta button
         elem = page.get_by_role("button", name="Crear mi cuenta")
         await elem.click(timeout=10000)
         
         # --> Assertions to verify final state
         
-        # --> The signup page displays the short-password validation error “Password must be at least 8 characters.”
+        # --> The short password triggers a minimum-length validation error.
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The short-password validation error is visible.
-        await expect(page.locator("#app").nth(0)).to_contain_text("Password must be at least 8 characters.", timeout=15000), "The short-password validation error is visible."
+        # Assert: The minimum password-length validation error is visible.
+        await expect(page.locator("#app").nth(0)).to_contain_text("Password must be at least 8 characters.", timeout=15000), "The minimum password-length validation error is visible."
         
         # --> The registration form remains visible after submission.
-        await page.get_by_role("textbox", name="Usuario").nth(0).scroll_into_view_if_needed()
+        await page.get_by_role("button", name="Crear mi cuenta").nth(0).scroll_into_view_if_needed()
         # Assert-outcome: not verified — the export-time check could not be evaluated
-        # Assert: The registration form remains visible.
-        await expect(page.get_by_role("textbox", name="Usuario").nth(0)).to_be_visible(timeout=15000), "The registration form remains visible."
+        # Assert: The registration form’s “Crear mi cuenta” button remains visible.
+        await expect(page.get_by_role("button", name="Crear mi cuenta").nth(0)).to_be_visible(timeout=15000), "The registration form\u2019s \u201cCrear mi cuenta\u201d button remains visible."
         await asyncio.sleep(5)
 
     finally:
