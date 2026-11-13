@@ -1,4 +1,5 @@
 from nicegui import ui, run
+from src.ui.stale_save import current_page, page_context
 from src.services.storage import storage_service
 from src.services.ygo_api import ygo_service, ApiCard
 from src.services.image_manager import image_manager
@@ -336,10 +337,13 @@ class StoragePage:
         if self.save_task:
             self.save_task.cancel()
 
+        page = current_page()
+
         async def delayed_save():
             try:
                 await asyncio.sleep(2.0)
-                await self._perform_save()
+                with page_context(page):
+                    await self._perform_save()
             except asyncio.CancelledError:
                 pass
             except Exception as e:

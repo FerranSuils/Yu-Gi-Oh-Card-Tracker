@@ -2,7 +2,35 @@ from src.core.models import Collection, CollectionCard, CollectionVariant, Colle
 from src.core.utils import generate_variant_id
 from typing import Optional
 
+from src.core.pricing_models import apply_list_price
+from src.core import stock_moves
+from src.core.sales_models import SaleLine
+
+
+def _ygo_id(line: SaleLine):
+    return int(line.card_id) if line.kind == 'stock' else None
+
+
 class CollectionEditor:
+    @staticmethod
+    def set_list_price(entry: CollectionEntry, price: Optional[float], locked: Optional[bool] = None) -> bool:
+        """Set an entry's sale price and lock. Returns True if it changed."""
+        return apply_list_price(entry, price, locked)
+
+    @staticmethod
+    def take_stock(collection: Collection, line: SaleLine) -> None:
+        """Sell the copies of a ticket line. Raises OutOfStock, changing nothing, if the pile is short."""
+        stock_moves.take(collection, line, _ygo_id(line), lambda v: v.variant_id == line.variant_id)
+
+    @staticmethod
+    def return_stock(collection: Collection, line: SaleLine) -> None:
+        """Put a sold line back, rebuilding the card, variant and pile if the sale emptied them."""
+        stock_moves.give_back(
+            collection, line, _ygo_id(line), lambda v: v.variant_id == line.variant_id,
+            lambda: CollectionCard(card_id=_ygo_id(line), name=line.name),
+            lambda: CollectionVariant(variant_id=line.variant_id, set_code=line.set_code, rarity=line.rarity,
+                                      image_id=line.image_id))
+
     @staticmethod
     def get_quantity(
         collection: Collection,
@@ -41,6 +69,18 @@ class CollectionEditor:
                                 e.storage_location == storage_location), None)
 
         return target_entry.quantity if target_entry else 0
+
+    @staticmethod
+    def _find_entry(collection: Collection, card_id: int, variant_id: Optional[str], set_code: str,
+                    rarity: str, image_id: Optional[int], language: str, condition: str,
+                    first_edition: bool, storage_location: Optional[str]) -> Optional[CollectionEntry]:
+        card = next((c for c in collection.cards if c.card_id == card_id), None)
+        target_variant_id = variant_id or generate_variant_id(card_id, set_code, rarity, image_id)
+        variant = next((v for v in card.variants if v.variant_id == target_variant_id), None) if card else None
+        if variant is None:
+            return None
+        return next((e for e in variant.entries if e.language == language and e.condition == condition and
+                     e.first_edition == first_edition and e.storage_location == storage_location), None)
 
     @staticmethod
     def get_total_quantity(
@@ -231,6 +271,14 @@ class CollectionEditor:
         if available < quantity:
             return False
 
+        # Remember the sale price: the target may be a brand-new entry.
+        source = CollectionEditor._find_entry(collection, api_card.id, variant_id, set_code, rarity, image_id,
+                                              language, condition, first_edition, from_storage)
+        source_price = (source.list_price, source.price_locked) if source else (None, False)
+        target_existed = CollectionEditor._find_entry(collection, api_card.id, variant_id, set_code, rarity,
+                                                      image_id, language, condition, first_edition,
+                                                      to_storage) is not None
+
         # Remove from Source
         removed = CollectionEditor.apply_change(
             collection, api_card, set_code, rarity, language, -quantity,
@@ -244,6 +292,12 @@ class CollectionEditor:
             condition, first_edition, image_id, variant_id, mode='ADD',
             storage_location=to_storage
         )
+
+        if added and not target_existed:
+            target = CollectionEditor._find_entry(collection, api_card.id, variant_id, set_code, rarity,
+                                                  image_id, language, condition, first_edition, to_storage)
+            if target is not None:
+                CollectionEditor.set_list_price(target, source_price[0], source_price[1])
 
         return removed or added
 

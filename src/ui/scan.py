@@ -16,7 +16,11 @@ import io
 
 # Import the module, not the instance, to avoid stale references on reload
 from src.services.scanner import manager as scanner_service
+from src.services.scanner.manager import owner_name, recent_scans_path, report_for
+from src.core.account_scope import account_root
 from src.services.scanner import SCANNER_AVAILABLE
+from src.services.scanner.upload import (MAX_PDF_BYTES, finished_notice, is_pdf, queued_notice, safe_upload_name,
+                                         upload_images)
 from src.core.persistence import persistence
 from src.core.models import Collection, CollectionCard, CollectionVariant, CollectionEntry, ApiCard
 from src.services.collection_editor import CollectionEditor
@@ -26,6 +30,7 @@ from src.services.image_manager import image_manager
 from src.ui.components.ambiguity_dialog import AmbiguityDialog
 from src.ui.components.filter_pane import FilterPane
 from src.ui.components.single_card_view import SingleCardView
+from src.ui.page_lifecycle import cleanup_when_client_is_deleted
 from src.ui.theme import page_header
 from src.core import config_manager
 from src.core.config import config_manager as app_config
@@ -375,6 +380,9 @@ class ScanPage:
     def __init__(self):
         # ScanPage manages the scanning session
         self.recent_collection: Collection = Collection(name="Recent Scans")
+        # Captured on the page's own request: timers and scanner threads must not guess the account.
+        self.owner = owner_name()
+        self.recent_path = recent_scans_path(account_root())
         self.target_collection_file = None
         self.collections = persistence.list_collections()
 
@@ -1144,7 +1152,7 @@ class ScanPage:
 
     def load_recent_scans(self):
         """Loads scans from temp file, handling migration from list to Collection."""
-        temp_path = "data/scans/scans_temp.json"
+        temp_path = self.recent_path
 
         if not os.path.exists(temp_path):
             self.recent_collection = Collection(name="Recent Scans")
@@ -1193,7 +1201,7 @@ class ScanPage:
 
     def save_recent_scans(self):
         """Saves current scanned collection to temp file."""
-        temp_path = "data/scans/scans_temp.json"
+        temp_path = self.recent_path
         try:
             os.makedirs(os.path.dirname(temp_path), exist_ok=True)
             # Manually save since persistence.save_collection forces data/collections dir
@@ -1217,10 +1225,12 @@ class ScanPage:
     def on_scanner_event(self, event):
         """Callback for scanner events."""
         if not self.is_active: return
+        if event.type != 'status_update' and event.data.get('owner', '') not in ('', self.owner):
+            return  # another account's scan
 
         # Push state immediately
         if event.snapshot:
-            self.debug_report = event.snapshot.model_dump()
+            self.debug_report = report_for(event.snapshot.model_dump(), self.owner)
         self.event_queue.put(event)
 
     async def on_card_confirmed(self, result_dict: Dict[str, Any]):
@@ -1374,7 +1384,7 @@ class ScanPage:
 
                     # Apply snapshot
                     if event.snapshot:
-                        self.debug_report = event.snapshot.model_dump()
+                        self.debug_report = report_for(event.snapshot.model_dump(), self.owner)
 
                     # Refresh logic based on event type
                     if event.type in ['status_update', 'scan_queued', 'scan_started', 'step_complete', 'scan_finished']:
@@ -1387,8 +1397,9 @@ class ScanPage:
 
                         # Handle specific finished notifications
                         if event.type == 'scan_finished':
-                            if not event.data.get('success'):
-                                ui.notify(f"Scan Failed: {event.data.get('error', 'Unknown')}", type='negative')
+                            notice = finished_notice(event.data or {})
+                            if notice:
+                                ui.notify(notice[1], type=notice[0], timeout=6000)
 
                     if event.type == 'error':
                         ui.notify(event.data.get('message', 'Error'), type='negative')
@@ -1401,13 +1412,13 @@ class ScanPage:
             self.watchdog_counter += 1
             if self.watchdog_counter >= 10:
                 self.watchdog_counter = 0
-                snapshot = scanner_service.scanner_manager.get_debug_snapshot()
+                snapshot = report_for(scanner_service.scanner_manager.get_debug_snapshot(), self.owner)
                 if snapshot and snapshot != self.debug_report:
                     self.debug_report = snapshot
                     self.refresh_debug_ui()
 
             # 3. Check result queue
-            res = scanner_service.scanner_manager.get_latest_result()
+            res = scanner_service.scanner_manager.get_latest_result(self.owner)
             if res:
                 logger.info(f"UI Received Result: {res.get('set_code')}, Ambiguous: {res.get('ambiguity_flag')}")
 
@@ -1425,7 +1436,7 @@ class ScanPage:
 
                 self.refresh_debug_ui() # Ensure final result is shown
 
-            if scanner_service.scanner_manager.is_idle() and self.event_queue.empty():
+            if scanner_service.scanner_manager.is_idle(self.owner) and self.event_queue.empty():
                 if self.consumer_timer:
                     self.consumer_timer.cancel()
                     if self.consumer_timer in self._timers:
@@ -1589,7 +1600,7 @@ class ScanPage:
         self.render_live_list.refresh()
 
     def export_scans(self):
-        temp_path = "data/scans/scans_temp.json"
+        temp_path = self.recent_path
         if os.path.exists(temp_path):
             ui.download(temp_path, "scans_temp.json")
             ui.notify("Exported scans successfully.", type='positive')
@@ -1707,7 +1718,7 @@ class ScanPage:
             }
             fname = f"scan_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg"
             # Use dynamic import access
-            scanner_service.scanner_manager.submit_scan(content, options, label="Live Scan", filename=fname)
+            scanner_service.scanner_manager.submit_scan(content, options, label="Live Scan", filename=fname, owner=self.owner)
             if not self.consumer_timer:
                 self.consumer_timer = ui.timer(0.1, self.event_consumer)
                 self._timers.append(self.consumer_timer)
@@ -1732,12 +1743,17 @@ class ScanPage:
 
             content = await file_obj.read()
 
-            # Extract filename safely
-            filename = getattr(e, 'name', None)
-            if not filename and hasattr(file_obj, 'name'):
-                filename = file_obj.name
-            if not filename:
-                filename = "upload.jpg"
+            original = getattr(e, 'name', None) or getattr(file_obj, 'name', None)
+            try:
+                # A PDF from a document scanner brings one card per page.
+                images = await run.io_bound(upload_images, content)
+            except ValueError as problem:
+                ui.notify(f"{original or 'Archivo'}: {problem}", type='negative', multi_line=True)
+                return
+            from_pdf = is_pdf(content)
+
+            if scanner_service.scanner_manager.is_paused():
+                scanner_service.scanner_manager.resume()
 
             options = {
                 "tracks": [self.selected_track],
@@ -1745,15 +1761,22 @@ class ScanPage:
                 "art_match_yolo": self.art_match_yolo,
                 "ambiguity_threshold": self.ambiguity_threshold,
                 "save_warped_scan": self.save_warped_scan,
+                "save_raw_scan": self.save_raw_scan,
                 "art_match_threshold": self.art_match_threshold,
                 "rotation": 0 # Explicitly 0 for uploads
             }
-            # Use dynamic import access
-            scanner_service.scanner_manager.submit_scan(content, options, label="Image Upload", filename=filename)
+            queued = 0
+            for number, (image, extension) in enumerate(images, start=1):
+                label = f"PDF p. {number}" if from_pdf else "Image Upload"
+                # Writing the file must not hold the UI loop: a PDF brings hundreds of pages.
+                if await run.io_bound(scanner_service.scanner_manager.submit_scan, image, dict(options),
+                                      label=label, filename=safe_upload_name(original, extension), owner=self.owner):
+                    queued += 1
             if not self.consumer_timer:
                 self.consumer_timer = ui.timer(0.1, self.event_consumer)
                 self._timers.append(self.consumer_timer)
-            ui.notify(f"Queued: {filename}", type='positive')
+            message, kind = queued_notice(queued, len(images), original, from_pdf)
+            ui.notify(message, type=kind, multi_line=True)
         except Exception as err:
             ui.notify(f"Upload failed: {err}", type='negative')
         # refresh triggered by event
@@ -1811,7 +1834,7 @@ class ScanPage:
             }
             fname = f"capture_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg"
             # Use dynamic import access
-            scanner_service.scanner_manager.submit_scan(content, options, label="Camera Capture", filename=fname)
+            scanner_service.scanner_manager.submit_scan(content, options, label="Camera Capture", filename=fname, owner=self.owner)
             if not self.consumer_timer:
                 self.consumer_timer = ui.timer(0.1, self.event_consumer)
                 self._timers.append(self.consumer_timer)
@@ -1992,7 +2015,7 @@ class ScanPage:
     @ui.refreshable
     def render_scan_queue(self):
         # Use dynamic import access
-        queue_items = scanner_service.scanner_manager.get_queue_snapshot()
+        queue_items = scanner_service.scanner_manager.get_queue_snapshot(self.owner)
 
         with ui.card().classes('w-full border border-gray-600 rounded p-0'):
              with ui.row().classes('w-full bg-gray-800 p-2 items-center'):
@@ -2009,10 +2032,10 @@ class ScanPage:
                                  ui.label(item.get('filename') or item.get('type')).classes('text-sm font-bold')
                                  ui.label(time.strftime("%H:%M:%S", time.localtime(item['timestamp']))).classes('text-xs text-gray-400')
                              ui.button(icon='delete', color='negative',
-                                       on_click=lambda idx=i: self.delete_queue_item(idx)).props('flat size=sm')
+                                       on_click=lambda rid=item['id']: self.delete_queue_item(rid)).props('flat size=sm')
 
     def delete_queue_item(self, index):
-        scanner_service.scanner_manager.remove_scan_request(index)
+        scanner_service.scanner_manager.remove_scan_request(index, self.owner)
         self.render_scan_queue.refresh()
 
     @ui.refreshable
@@ -2130,7 +2153,7 @@ class ScanPage:
                     ui.button("Capture & Analyze", on_click=self.handle_debug_capture, icon='camera_alt').classes('flex-grow bg-accent text-black font-bold')
 
                 ui.separator().classes('bg-gray-600')
-                ui.upload(label="Upload Image", on_upload=self.handle_debug_upload, auto_upload=True).props('accept=.jpg,.png color=secondary').classes('w-full')
+                ui.upload(label="Upload Image / PDF", on_upload=self.handle_debug_upload, auto_upload=True, max_file_size=MAX_PDF_BYTES).props('accept="image/jpeg,image/png,image/webp,application/pdf" color=secondary').classes('w-full')
 
                 self.render_scan_queue()
                 self.render_debug_results()
@@ -2167,7 +2190,7 @@ def scan_page():
             t.cancel()
         page.consumer_timer = None
 
-    ui.context.client.on_disconnect(cleanup)
+    cleanup_when_client_is_deleted(ui.context.client, cleanup)
 
     # Register listener
     scanner_service.scanner_manager.register_listener(page.on_scanner_event)
@@ -2179,7 +2202,7 @@ def scan_page():
 
     # A newly opened page must consume events from scans that were already
     # submitted by another page before this connection was established.
-    if not scanner_service.scanner_manager.is_idle():
+    if not scanner_service.scanner_manager.is_idle(page.owner):
         page.consumer_timer = ui.timer(0.1, page.event_consumer)
         page._timers.append(page.consumer_timer)
 
@@ -2241,6 +2264,12 @@ def scan_page():
                     # Capture Button
                     ui.button('Capture & Scan', on_click=page.trigger_live_scan).props('icon=camera color=secondary size=lg id=btn-live-scan').classes('w-full font-bold')
 
+                    # Scanned images from the phone gallery, a flatbed scanner or a folder
+                    ui.upload(label='Subir imágenes o PDF escaneado', on_upload=page.handle_debug_upload,
+                              multiple=True, auto_upload=True, max_file_size=MAX_PDF_BYTES) \
+                        .props('accept="image/jpeg,image/png,image/webp,application/pdf" color=secondary flat bordered id=upload-scans') \
+                        .classes('w-full')
+
                 # RIGHT PANEL: Recent Scans Gallery
                 with ui.column().classes('w-1/2 h-full bg-dark border-l border-gray-800 flex flex-col overflow-hidden'):
                     page.render_recent_scans_header()
@@ -2260,4 +2289,4 @@ def scan_page():
     page._timers.append(ui.timer(0.1, page.init_data, once=True))
 
     # Initialize from current state immediately
-    page.debug_report = scanner_service.scanner_manager.get_debug_snapshot()
+    page.debug_report = report_for(scanner_service.scanner_manager.get_debug_snapshot(), page.owner)

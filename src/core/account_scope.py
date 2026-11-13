@@ -38,3 +38,11 @@ def uses_private_storage(name: str | None) -> bool:
 
 def user_data_root(name: str) -> str:
     return os.path.join("data", "users", name)
+
+
+def account_root() -> str:
+    """Folder that holds the current account's data: 'data' for the primary account."""
+    name = current_account_name()
+    if uses_private_storage(name):
+        return user_data_root(name)
+    return "data"

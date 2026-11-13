@@ -2,6 +2,8 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 import uuid
 
+from src.core.pricing_models import PricingRule
+
 # --- Collection Models ---
 
 class CollectionEntry(BaseModel):
@@ -13,6 +15,9 @@ class CollectionEntry(BaseModel):
     purchase_price: Optional[float] = 0.0
     market_value: Optional[float] = 0.0
     purchase_date: Optional[str] = None
+    # Sale price in the account's market currency; locked prices are never repriced.
+    list_price: Optional[float] = None
+    price_locked: bool = False
 
 class StorageDefinition(BaseModel):
     name: str
@@ -46,6 +51,8 @@ class Collection(BaseModel):
     description: Optional[str] = ""
     cards: List[CollectionCard] = []
     storage_definitions: List[StorageDefinition] = []
+    for_sale: bool = False
+    pricing_rule: Optional[PricingRule] = None
 
     @property
     def total_cards(self) -> int:

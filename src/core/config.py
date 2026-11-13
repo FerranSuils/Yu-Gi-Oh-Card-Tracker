@@ -8,6 +8,8 @@ from typing import Dict, Any
 from werkzeug.security import generate_password_hash
 
 CONFIG_FILE = "config.json"
+# Languages YGOPRODeck serves. Any other code makes the card database request fail.
+SUPPORTED_LANGUAGES = ("en", "de", "fr", "it", "pt")
 
 class ConfigManager:
     def __init__(self, config_file: str = CONFIG_FILE):
@@ -103,7 +105,10 @@ class ConfigManager:
             self.save_config()
 
     def get_language(self) -> str:
-        return self.config.get("language", "en")
+        language = self.config.get("language", "en")
+        if isinstance(language, str) and language.lower() in SUPPORTED_LANGUAGES:
+            return language
+        return "en"
 
     def set_language(self, language: str):
         self.config["language"] = language

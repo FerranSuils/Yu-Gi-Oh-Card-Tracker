@@ -1,4 +1,5 @@
 from nicegui import ui, run
+from src.ui.stale_save import current_page, page_context
 from src.core.persistence import persistence, sanitize_collection_filename
 from src.core.changelog_manager import changelog_manager
 from src.core.config import config_manager
@@ -282,10 +283,13 @@ class BulkAddPage:
         if self.save_task:
             self.save_task.cancel()
 
+        page = current_page()
+
         async def delayed_save():
             try:
                 await asyncio.sleep(2.0) # 2 seconds debounce
-                await self._perform_save()
+                with page_context(page):
+                    await self._perform_save()
             except asyncio.CancelledError:
                 pass
 

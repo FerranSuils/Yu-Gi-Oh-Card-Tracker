@@ -598,6 +598,13 @@ class YugiohService:
                  data = await asyncio.to_thread(self._read_db_file, language)
                  parsed_cards = parse_cards_data(data)
 
+             if data is None or parsed_cards is None:
+                 # run.io_bound returns None when the caller's task is cancelled (the page
+                 # was left mid-load) or the app is stopping. Caching that None would break
+                 # every later load until a restart.
+                 logger.warning("Card database load was interrupted; nothing cached.")
+                 return []
+
              self._cards_cache[language] = parsed_cards
              self._rebuild_card_lookups(language, parsed_cards)
              self._rebuild_card_metadata(language, parsed_cards)

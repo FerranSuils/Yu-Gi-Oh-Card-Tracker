@@ -25,3 +25,9 @@ build/
 /dashboard_mobile_error.png
 /failed_test.png
 /verification/*.png
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json
+.superpowers/
+
+# Local accounts (password hashes)
+accounts.json

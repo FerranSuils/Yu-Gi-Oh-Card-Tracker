@@ -16,6 +16,7 @@ except ImportError:
     np = None
 
 from src.services.scanner import SCANNER_AVAILABLE
+from src.services.scanner.art_index import plan_index_update
 # Conditional import for cv2
 try:
     import cv2
@@ -35,6 +36,7 @@ else:
     class ScanRequest: pass
     class ScanDebugReport: pass
 
+from src.core.account_scope import current_account_name
 from src.services.ygo_api import ygo_service
 from src.services.image_manager import image_manager
 from src.core.utils import normalize_set_code, extract_language_code
@@ -44,6 +46,24 @@ logger = logging.getLogger(__name__)
 
 class ScanAborted(Exception):
     pass
+
+
+def owner_name() -> str:
+    """The signed-in account, as the key that scans, results and reports are filed under."""
+    return current_account_name() or ""
+
+
+def report_for(report: Dict[str, Any], owner: str) -> Dict[str, Any]:
+    """The live report as one account may see it: blank while another account's card is on screen."""
+    if not report or report.get("owner", "") in ("", owner):
+        return report
+    return {"owner": owner, "logs": [], "queue_len": 0, "paused": report.get("paused", True),
+            "current_step": "Idle", "captured_image_url": None, "warped_image_url": None, "roi_viz_url": None}
+
+
+def recent_scans_path(root: str) -> str:
+    """Where an account keeps the scans it has not filed yet."""
+    return os.path.join(root, "scans", "scans_temp.json")
 
 class ScannerManager:
     def __init__(self):
@@ -55,7 +75,8 @@ class ScannerManager:
         self.queue_lock = threading.Lock()
 
         self.lookup_queue = queue.Queue() # Best result -> DB Lookup
-        self.result_queue = queue.Queue() # Finished results (ScanResult) -> UI
+        self._results: Dict[str, List[Any]] = {}  # Finished results (ScanResult) -> UI, by account
+        self._results_lock = threading.Lock()
         self.notification_queue = queue.Queue() # Notifications -> UI
 
         self.thread: Optional[threading.Thread] = None
@@ -94,9 +115,12 @@ class ScannerManager:
             if callback in self.listeners:
                 self.listeners.remove(callback)
 
-    def _emit(self, event_type: str, data: Dict[str, Any] = {}):
-        """Emits an event to all listeners."""
+    def _emit(self, event_type: str, data: Dict[str, Any] = {}, owner: Optional[str] = None):
+        """Emits an event to all listeners. `owner` names the account when it is not the one on screen."""
         if not SCANNER_AVAILABLE: return
+
+        if event_type != "status_update":
+            data = {"owner": self.debug_state.owner if owner is None else owner, **data}
 
         # Include current snapshot
         snapshot = self.debug_state.model_copy()
@@ -142,10 +166,15 @@ class ScannerManager:
         logger.info("Scanner stopped")
         self._emit("status_update", {"status": "Stopped"})
 
-    def submit_scan(self, image_data: bytes, options: Dict[str, Any], label: str = "Manual Scan", filename: str = None):
-        """Submits a scan task to the queue."""
+    def submit_scan(self, image_data: bytes, options: Dict[str, Any], label: str = "Manual Scan", filename: str = None,
+                    owner: Optional[str] = None):
+        """Submits a scan task to the queue. True when the scan was saved and queued."""
+        if owner is None:
+            owner = owner_name()
         if not filename:
              filename = f"scan_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg"
+        # Never let a caller-supplied name leave the queue folder.
+        filename = os.path.basename(filename.replace("\\", "/")) or f"scan_{uuid.uuid4().hex[:6]}.jpg"
 
         filepath = os.path.join(self.queue_dir, filename)
 
@@ -156,8 +185,10 @@ class ScannerManager:
         except Exception as e:
             logger.error(f"Failed to write scan file {filepath}: {e}")
             self.notification_queue.put(("negative", f"Failed to save scan: {e}"))
-            return
+            return False
 
+        if not SCANNER_AVAILABLE:
+            return False
         if SCANNER_AVAILABLE:
             request = ScanRequest(
                 id=str(uuid.uuid4())[:8],
@@ -165,14 +196,16 @@ class ScannerManager:
                 filepath=filepath,
                 options=options,
                 type=label,
-                filename=filename
+                filename=filename,
+                owner=owner
             )
 
             with self.queue_lock:
                 self.scan_queue.append(request)
 
             self._log_debug(f"Scan Queued: {label}")
-            self._emit("scan_queued", {"filename": filename})
+            self._emit("scan_queued", {"filename": filename, "owner": owner})
+        return True
 
     def pause(self):
         self.paused = True
@@ -195,33 +228,47 @@ class ScannerManager:
     def is_paused(self) -> bool:
         return self.paused
 
-    def is_idle(self) -> bool:
-        """Check if the scanner has no pending work."""
+    def is_idle(self, owner: Optional[str] = None) -> bool:
+        """Check if the scanner has no pending work (finished results count only for the asking account)."""
+        if owner is None:
+            owner = owner_name()
         with self.queue_lock:
             scan_empty = len(self.scan_queue) == 0
         return (scan_empty and 
                 self.lookup_queue.empty() and 
-                self.result_queue.empty() and
+                not self._results.get(owner) and
                 not self.is_processing)
 
-    def get_queue_snapshot(self) -> List[Dict[str, Any]]:
+    def get_queue_snapshot(self, owner: Optional[str] = None) -> List[Dict[str, Any]]:
+        """The asking account's queued scans."""
+        if owner is None:
+            owner = owner_name()
         with self.queue_lock:
             if SCANNER_AVAILABLE:
-                return [req.model_dump() for req in self.scan_queue]
+                return [req.model_dump() for req in self.scan_queue if req.owner == owner]
             return []
 
-    def remove_scan_request(self, index: int):
+    def remove_scan_request(self, request_id: str, owner: Optional[str] = None) -> bool:
+        """Drops one of the asking account's queued scans. False when it is not theirs or already gone."""
+        if owner is None:
+            owner = owner_name()
         with self.queue_lock:
-            if 0 <= index < len(self.scan_queue):
-                removed = self.scan_queue.pop(index)
-                filepath = removed.filepath
-                if filepath and os.path.exists(filepath):
-                    try:
-                        os.remove(filepath)
-                    except OSError:
-                        pass
-                self._log_debug(f"Removed item {removed.id} from queue")
-                self._emit("status_update", {"queue_len": len(self.scan_queue)})
+            index = next((i for i, req in enumerate(self.scan_queue)
+                          if req.id == request_id and req.owner == owner), None)
+            if index is None:
+                return False
+            removed = self.scan_queue.pop(index)
+            remaining = len(self.scan_queue)
+        # Outside the lock: _emit takes it again and it is not reentrant.
+        filepath = removed.filepath
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+        self._log_debug(f"Removed item {removed.id} from queue")
+        self._emit("status_update", {"queue_len": remaining})
+        return True
 
     def get_debug_snapshot(self) -> Dict[str, Any]:
         with self.queue_lock:
@@ -229,6 +276,21 @@ class ScannerManager:
                 self.debug_state.queue_len = len(self.scan_queue)
                 return self.debug_state.model_dump()
             return {}
+
+    def _begin_report(self, owner: str) -> None:
+        """A blank live report for the scan that starts now: nothing of the previous account's card."""
+        previous = self.debug_state
+        if not previous:
+            return
+        logs = previous.logs if previous.owner == owner else []
+        self.debug_state = ScanDebugReport(owner=owner, paused=previous.paused, logs=logs)
+
+    def _publish_match(self, candidates, owner: str, summary: Dict[str, Any]) -> None:
+        """Announce a finished lookup to its account; it only joins the live report if that is theirs."""
+        if self.debug_state and self.debug_state.owner == owner:
+            self.debug_state.match_candidates = candidates
+        self._emit("step_complete", {"step": "matched"}, owner=owner)
+        self._emit("result_ready", summary, owner=owner)
 
     def _log_debug(self, message: str):
         if not self.debug_state: return
@@ -242,15 +304,22 @@ class ScannerManager:
     def get_status(self) -> str:
         return self.status_message
 
-    def get_latest_result(self) -> Optional[Dict[str, Any]]:
-        # Returns dict for UI consumption
-        try:
-            res = self.result_queue.get_nowait()
-            if hasattr(res, 'model_dump'):
-                return res.model_dump()
-            return res
-        except queue.Empty:
-            return None
+    def _deliver(self, result, owner: str) -> None:
+        with self._results_lock:
+            self._results.setdefault(owner, []).append(result)
+
+    def get_latest_result(self, owner: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """The asking account's next finished scan, as a dict for the UI."""
+        if owner is None:
+            owner = owner_name()
+        with self._results_lock:
+            waiting = self._results.get(owner)
+            if not waiting:
+                return None
+            res = waiting.pop(0)
+        if hasattr(res, 'model_dump'):
+            return res.model_dump()
+        return res
 
     def get_latest_notification(self) -> Optional[Tuple[str, str]]:
         try:
@@ -279,42 +348,39 @@ class ScannerManager:
         index_path = os.path.join(self.debug_dir, "art_index_yolo.pkl")
         img_dir = "data/images"
 
-        # Load Cache (if not forced)
-        if not force and os.path.exists(index_path) and not self.art_index:
+        # Load the cache, then index only the images it does not cover yet.
+        cached = None
+        if not force and os.path.exists(index_path):
             try:
                 with open(index_path, "rb") as f:
-                    loaded_index = pickle.load(f)
-                    if loaded_index and len(loaded_index) > 0:
-                        self.art_index = loaded_index
-                        logger.info(f"Loaded Art Index: {len(self.art_index)} items")
-                        return
-                    else:
-                        logger.info("Cached Art Index is empty. Rebuilding...")
+                    cached = pickle.load(f)
             except Exception as e:
                 logger.error(f"Failed to load cache: {e}")
 
-        # If cache failed or didn't exist, check images
         if not os.path.exists(img_dir):
             logger.error(f"Image directory not found: {img_dir}")
             return
 
-        logger.info(f"Building Art Index (YOLO) from {img_dir}...")
         try:
             files = os.listdir(img_dir)
         except OSError as e:
             logger.error(f"Could not list {img_dir}: {e}")
             return
 
-        count = 0
-        new_index = {}
+        new_index, missing = plan_index_update(cached if isinstance(cached, dict) else None, files)
+        if not missing and cached is not None and len(new_index) == len(cached):
+            self.art_index = new_index
+            logger.info(f"Loaded Art Index: {len(self.art_index)} items")
+            return
+        logger.info(f"Updating Art Index (YOLO): {len(new_index)} cached, {len(missing)} to index")
 
-        # Check dependencies
         if cv2 is None:
             logger.error("CV2 is not available. Skipping Art Index.")
             return
 
-        for f in files:
-            if not f.lower().endswith(('.jpg', '.png', '.jpeg')): continue
+        count = 0
+        failures = 0
+        for f in missing:
             path = os.path.join(img_dir, f)
             try:
                 img = cv2.imread(path)
@@ -322,14 +388,13 @@ class ScannerManager:
                     logger.warning(f"Failed to read image: {f}")
                     continue
 
-                # extract_yolo_features(image, model_name='yolo26n-cls.pt')
                 feat = self.scanner.extract_yolo_features(img)
                 if feat is not None:
                     new_index[f] = feat
                     count += 1
                 else:
-                    # Log failure to help debug (throttled?)
-                    if count < 5:
+                    failures += 1
+                    if failures <= 5:
                         logger.warning(f"Feature extraction failed for {f}")
 
                 if count > 0 and count % 50 == 0:
@@ -388,6 +453,7 @@ class ScannerManager:
                 self.is_processing = True
                 self.status_message = f"Processing: {filename}"
                 logger.info(f"Starting scan for: {filename}")
+                self._begin_report(task.owner)
                 self._log_debug(f"Started: {filename}")
                 self._emit("scan_started", {"filename": filename})
 
@@ -480,7 +546,8 @@ class ScannerManager:
                                 "warped_image_url": report.get("warped_image_url"),
                                 "raw_image_path": temp_raw_path,
                                 "threshold": ambiguity_threshold,
-                                "art_threshold": art_threshold
+                                "art_threshold": art_threshold,
+                                "owner": task.owner
                             }
                             self.lookup_queue.put(lookup_data)
 
@@ -497,7 +564,7 @@ class ScannerManager:
                         except OSError:
                             pass
 
-                        self._emit("scan_finished", {"success": True})
+                        self._emit("scan_finished", {"success": True, "detected": bool(best_res or art_match)})
 
                     else:
                         self._log_debug(f"Frame read failed for {filepath}")
@@ -781,19 +848,16 @@ class ScannerManager:
                                 path = await image_manager.ensure_image(result.card_id, img.image_url, high_res=True)
                                 result.image_path = path
 
-            # Update Debug State with candidates for UI
-            if self.debug_state:
-                self.debug_state.match_candidates = result.candidates
-                self._emit("step_complete", {"step": "matched"})
-
             # Fallback if no match but Set ID exists in OCR?
             if not result.set_code and ocr_res.set_id:
                 result.set_code = ocr_res.set_id
 
             logger.info(f"Matching finished in {time.time() - start_time:.3f}s. Ambiguity: {result.ambiguity_flag}")
 
-            self.result_queue.put(result)
-            self._emit("result_ready", {"set_code": result.set_code, "ambiguous": result.ambiguity_flag})
+            owner = data.get('owner', '')
+            self._deliver(result, owner)
+            self._publish_match(result.candidates, owner,
+                                {"set_code": result.set_code, "ambiguous": result.ambiguity_flag})
 
         except Exception as e:
             logger.error(f"Error in process_pending_lookups: {e}", exc_info=True)

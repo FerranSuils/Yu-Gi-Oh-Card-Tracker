@@ -1,0 +1,682 @@
+[
+  {
+    "id": "TC001",
+    "title": "Create an account and arrive in an empty private collection",
+    "description": "A new visitor can register with valid credentials and is automatically signed in to an empty private collection.",
+    "category": "Signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an account"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a new valid username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands on the collection page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new account's empty collection is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Open the collection page while signed out and reach the login screen",
+    "description": "A signed-out visitor trying to access the private collection is redirected to sign in with the next destination preserved.",
+    "category": "Protected page access",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /collection"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is redirected to the login page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next destination for the collection page is preserved"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Open the dashboard while signed out and reach the login screen",
+    "description": "A signed-out visitor trying to access the dashboard is redirected to sign in with the next destination preserved.",
+    "category": "Protected page access",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is redirected to the login page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next destination for the dashboard is preserved"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "New account signup lands in an empty private collection",
+    "description": "A new visitor can create an account and is signed in automatically on a private empty collection.",
+    "category": "Private empty collection after signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an account"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a new unique username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands on the collection page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty private collection is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Registered user stays signed in after returning to the collection",
+    "description": "A signed-in user remains authenticated when revisiting the collection page and reloading it.",
+    "category": "Signed-in session persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with an existing username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with the matching password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the collection page"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the collection page to finish loading"
+      },
+      {
+        "type": "action",
+        "description": "Reload the page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user remains signed in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the collection page is still displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Open the deck builder while signed out and reach the login screen",
+    "description": "A signed-out visitor trying to access the deck builder is redirected to sign in with the next destination preserved.",
+    "category": "Protected page access",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /decks"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is redirected to the login page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next destination for the deck builder is preserved"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Signed-out visitor is redirected from the home page",
+    "description": "A signed-out visitor cannot open the protected home page and is redirected to sign in with the intended destination preserved.",
+    "category": "Signed-in session persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sign-in page is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the intended destination is preserved for after sign-in"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Signed-out visitor is redirected from the deck builder",
+    "description": "A signed-out visitor cannot open the protected deck builder and is redirected to sign in with the intended destination preserved.",
+    "category": "Signed-in session persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /decks"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sign-in page is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the intended destination is preserved for after sign-in"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Signed-out visitor is redirected from settings",
+    "description": "A signed-out visitor cannot open the protected settings page and is redirected to sign in with the intended destination preserved.",
+    "category": "Signed-in session persistence",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /settings"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sign-in page is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the intended destination is preserved for after sign-in"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Sign in and keep access after revisiting the collection page",
+    "description": "A registered player can sign in successfully and still access the private collection after navigating back to it.",
+    "category": "Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a valid existing username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with the matching password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the collection page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user remains signed in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the collection page is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Keep the signed-in session after reloading the collection page",
+    "description": "A signed-in collector can return to the collection page and the session remains active after a page reload.",
+    "category": "Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a valid existing username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with the matching password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the collection page"
+      },
+      {
+        "type": "action",
+        "description": "Reload the page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user remains signed in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the collection page is still displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Second account sees a separate empty private collection",
+    "description": "A newly registered second account gets its own empty collection and does not see another user's collection data.",
+    "category": "Private empty collection after signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an account"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a different new unique username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands on the collection page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty private collection is displayed for the new account"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Collection loads without an error toast after signup",
+    "description": "A newly registered user can load the collection catalogue without seeing an error toast.",
+    "category": "Private empty collection after signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an account"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a new unique username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the collection catalogue to load"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the collection page is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no error toast is shown"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Create a second account and see a separate empty collection",
+    "description": "A new account can be registered separately and only sees its own empty private collection.",
+    "category": "Signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an account"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a different valid new username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands on the collection page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new account's empty collection is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Fresh collection load shows a loading state before cards appear",
+    "description": "On a first load, the collection page shows a loading state while the catalogue is being fetched and then displays the collection view.",
+    "category": "Private empty collection after signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an account"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a new unique username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a loading state is shown before the collection finishes loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the collection view is eventually displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC016",
+    "title": "Reject an invalid username during registration",
+    "description": "A visitor entering an invalid username format on registration sees a validation error and stays on the signup form.",
+    "category": "Signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /registro"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with an invalid username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a username validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the registration form remains visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC017",
+    "title": "Reject a short password during registration",
+    "description": "A visitor entering a password that is too short on registration sees a validation error and stays on the signup form.",
+    "category": "Signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /registro"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a valid new username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a short password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same short password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a password length validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the registration form remains visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC018",
+    "title": "Reject mismatched password confirmation during registration",
+    "description": "A visitor entering different password and confirmation values on registration sees a mismatch error and stays on the signup form.",
+    "category": "Signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /registro"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with a valid new username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with a different password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a password confirmation mismatch error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the registration form remains visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC019",
+    "title": "Reject an existing username during registration",
+    "description": "A visitor trying to register with an already used username sees an existing-user error and stays on the signup form.",
+    "category": "Signup",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /registro"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with an already used username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with a valid password"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password confirmation field with the same valid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a username already exists error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the registration form remains visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC020",
+    "title": "Reject incorrect login credentials",
+    "description": "A visitor entering the wrong username or password on login sees an authentication error and remains on the login page.",
+    "category": "Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with an invalid username"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with an invalid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an incorrect username or password error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the login form remains visible"
+      }
+    ],
+    "priority": "Low"
+  }
+]

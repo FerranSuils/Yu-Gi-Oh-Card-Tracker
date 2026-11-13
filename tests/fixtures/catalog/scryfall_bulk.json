@@ -1,0 +1,4 @@
+{"object": "list", "data": [
+ {"type": "oracle_cards", "jsonl_download_uri": "https://data.scryfall.io/oracle.jsonl"},
+ {"type": "default_cards", "jsonl_download_uri": "https://data.scryfall.io/default-cards.jsonl"}
+]}

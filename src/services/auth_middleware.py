@@ -8,8 +8,8 @@ from starlette.responses import JSONResponse, RedirectResponse, Response
 from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY, AUTH_USER_KEY, auth_service
 
 
-PUBLIC_PATHS = {'/login', '/registro', '/login/callback', '/_nicegui_ws', '/api/v1/register'}
-PUBLIC_PREFIXES = ('/_nicegui/', '/.well-known/', '/fonts/', '/brand/')
+PUBLIC_PATHS = {'/login', '/registro', '/login/callback', '/_nicegui_ws', '/api/v1/register', '/tpv/pagado', '/mapa', '/manifest.webmanifest', '/sw.js'}
+PUBLIC_PREFIXES = ('/_nicegui/', '/.well-known/', '/fonts/', '/brand/', '/kiosko/', '/api/v1/shop/')
 
 
 def is_public_path(path: str) -> bool:

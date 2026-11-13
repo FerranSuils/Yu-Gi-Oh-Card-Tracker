@@ -2,10 +2,12 @@ import asyncio
 
 from nicegui import app, run, ui
 
-from src.core.config import config_manager
+from src.core.config import SUPPORTED_LANGUAGES, config_manager
 from src.services.auth_service import AUTH_REVISION_KEY, AUTH_USER_KEY, auth_service
 from src.services.sample_generator import generate_sample_collection
 from src.services.ygo_api import ygo_service
+from src.ui.settings_games import (render_games_section, render_prices_section, render_shop_section,
+                                    render_stripe_section)
 from src.ui.theme import page_header
 
 
@@ -21,7 +23,7 @@ def settings_page() -> None:
             ui.label('Application').classes('text-h6')
             ui.label('Display language and page sizes').classes('text-caption text-grey-5 q-mb-md')
             language = ui.select(
-                ['en', 'de', 'fr', 'it', 'pt'],
+                list(SUPPORTED_LANGUAGES),
                 label='Language',
                 value=config_manager.get_language(),
             ).props('outlined').classes('w-full')
@@ -107,6 +109,23 @@ def settings_page() -> None:
                 'color=secondary'
             ).classes('w-full q-mt-md')
 
+    render_games_section()
+    render_prices_section()
+    render_shop_section()
+    render_stripe_section()
+    from src.ui.settings_shop import (render_api_section, render_buylist_section, render_kiosk_section,
+                                      render_map_section,
+                                      render_loyalty_section)
+
+    render_buylist_section()
+    render_loyalty_section()
+    render_kiosk_section()
+    render_api_section()
+    render_map_section()
+    from src.ui.settings_channels import render_channels_section
+
+    render_channels_section()
+
     with ui.card().classes('w-full q-pa-lg q-mt-md'):
         ui.label('Data management').classes('text-h6')
         ui.label('Refresh card metadata and cached imagery. Large downloads can take a while.').classes(
@@ -168,7 +187,7 @@ def settings_page() -> None:
         async def update_all_dbs():
             async def update(progress_callback):
                 total = 0
-                languages = ['en', 'de', 'fr', 'it', 'pt']
+                languages = list(SUPPORTED_LANGUAGES)
                 progress_callback(0.0)
                 for index, language_code in enumerate(languages, start=1):
                     total += await ygo_service.fetch_card_database(language_code)

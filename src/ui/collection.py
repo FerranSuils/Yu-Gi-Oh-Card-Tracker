@@ -1,4 +1,5 @@
 from nicegui import ui, run
+from src.ui.stale_save import current_page, page_context
 from src.core.persistence import persistence, sanitize_collection_filename
 from src.core.changelog_manager import changelog_manager
 from src.core.models import Collection, CollectionCard, CollectionVariant, CollectionEntry, Card, CardMetadata
@@ -11,6 +12,8 @@ from src.ui.components.single_card_view import SingleCardView
 from src.ui.theme import METRIC_VALUE_CLASSES, page_header
 from src.services.collection_editor import CollectionEditor
 from src.services.pricing_service import pricing_service
+from src.ui.components.pricing_bar import render_pricing_bar
+from src.core.collection_sync import RevisionWatcher
 from dataclasses import dataclass, field, replace
 from typing import List, Optional, Dict, Set, Callable
 import asyncio
@@ -421,6 +424,13 @@ class CollectionPage:
         self.save_task = None
         self.metrics = None
 
+    async def _reload_if_changed_elsewhere(self):
+        if self.save_task is not None and not self.save_task.done():
+            return  # our own change is still being saved; look again next tick
+        if self.revision_watcher.changed():
+            ui.notify('Los precios de esta colección se han actualizado.', type='info')
+            await self.load_data(keep_page=True)
+
     async def _perform_save(self):
         try:
             if self.state['current_collection'] and self.state['selected_file']:
@@ -436,10 +446,13 @@ class CollectionPage:
         if self.save_task:
             self.save_task.cancel()
 
+        page = current_page()
+
         async def delayed_save():
             try:
                 await asyncio.sleep(2.0) # 2 seconds debounce
-                await self._perform_save()
+                with page_context(page):
+                    await self._perform_save()
             except asyncio.CancelledError:
                 pass
 
@@ -493,6 +506,10 @@ class CollectionPage:
 
         await self.apply_filters(reset_page=not keep_page)
         self.update_filter_ui()
+        if getattr(self, 'pricing_container', None) is not None:
+            render_pricing_bar(self.pricing_container, collection, 'yugioh', self._perform_save)
+        if getattr(self, 'revision_watcher', None) is not None:
+            self.revision_watcher.changed()  # what we just loaded is the baseline
         logger.info(f"Data loaded. Items: {len(self.state['cards_consolidated'])}")
 
     async def _set_responsive_page_size(self):
@@ -1919,6 +1936,12 @@ class CollectionPage:
                  self.filter_pane.build()
 
         self.render_header()
+        # Market value, sale value and the «Precios…» dialog; filled once the collection loads.
+        self.pricing_container = ui.element('div').classes('w-full')
+        # The nightly reprice may rewrite this file; reload rather than later saving an older copy.
+        self.revision_watcher = RevisionWatcher(
+            lambda: persistence.collection_path(self.state['selected_file']) if self.state['selected_file'] else None)
+        ui.timer(30, self._reload_if_changed_elsewhere)
         self.render_metrics_area()
 
         self.content_area()

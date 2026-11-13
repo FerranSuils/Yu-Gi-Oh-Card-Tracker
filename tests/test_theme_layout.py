@@ -50,7 +50,10 @@ def test_global_styles_are_registered_as_shared_head_content():
     with patch.object(theme.ui, 'add_head_html') as add_head_html:
         theme.install_global_styles()
 
-    add_head_html.assert_called_once_with(theme.GLOBAL_CSS, shared=True)
+    # The theme block goes after the base styles so its dark tokens win.
+    assert [c.args[0] for c in add_head_html.call_args_list] == [theme.GLOBAL_CSS, theme.THEME_HEAD,
+                                                                  theme.pwa.HEAD_HTML]
+    assert all(c.kwargs == {'shared': True} for c in add_head_html.call_args_list)
 
 
 def test_page_header_builds_title_and_optional_subtitle():
@@ -74,5 +77,5 @@ def test_navigation_covers_every_protected_route():
     nav_routes = {route for _, route in NAV_ITEMS}
     assert nav_routes | {'/settings'} == {
         '/', '/collection', '/storage', '/sets', '/decks', '/bulk_add',
-        '/scan', '/import', '/db_editor', '/settings',
+        '/scan', '/import', '/csv', '/db_editor', '/settings',
     }

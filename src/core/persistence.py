@@ -8,6 +8,7 @@ import uuid
 from urllib.parse import unquote
 from typing import List, Optional
 from src.core.account_scope import current_account_name, user_data_root, uses_private_storage
+from src.core.collection_sync import ensure_fresh, path_lock, remember, written
 from src.core.models import Collection, Deck
 
 DATA_DIR = "data"
@@ -72,6 +73,10 @@ class PersistenceManager:
         os.makedirs(path, exist_ok=True)
         return path
 
+    def bound(self) -> "PersistenceManager":
+        """This account's files, fixed now: for work that outlives the request (threads, timers)."""
+        return _BoundPersistence(self.data_dir, self.decks_dir)
+
     def list_collections(self) -> List[str]:
         """Returns a list of available collection filenames."""
         files = [f for f in os.listdir(self.data_dir) if f.endswith(('.json', '.yaml', '.yml'))]
@@ -95,13 +100,27 @@ class PersistenceManager:
                 else:
                     raise ValueError("Unsupported file format")
 
-            return Collection(**data)
+            collection = Collection(**data)
+            remember(collection, filepath)
+            return collection
         except Exception as e:
             logger.error(f"Error loading collection {filename}: {e}")
             raise
 
     def save_collection(self, collection: Collection, filename: str):
-        """Saves a collection to a file."""
+        """Saves a collection to a file, never interleaved with another writer of that file."""
+        safe_name = sanitize_collection_filename(filename)
+        path = os.path.join(self.data_dir, safe_name)
+        with path_lock(path):
+            ensure_fresh(collection, path)  # an older copy must not undo a newer save
+            self._write_collection(collection, safe_name)
+            written(collection, path)
+
+    def collection_path(self, filename: str) -> str:
+        """The file behind one collection, for collection_sync."""
+        return os.path.join(self.data_dir, sanitize_collection_filename(filename))
+
+    def _write_collection(self, collection: Collection, filename: str):
         filename = sanitize_collection_filename(filename)
         logger.info(f"Saving collection: {filename}")
         filepath = os.path.join(self.data_dir, filename)
@@ -360,4 +379,19 @@ class PersistenceManager:
             logger.error(f"Error saving UI state: {e}")
 
 # Global instance
+class _BoundPersistence(PersistenceManager):
+    """A manager that no longer asks who is signed in."""
+
+    @property
+    def data_dir(self) -> str:
+        return self._shared_data_dir
+
+    @property
+    def decks_dir(self) -> str:
+        return self._shared_decks_dir
+
+    def bound(self) -> "PersistenceManager":
+        return self
+
+
 persistence = PersistenceManager()

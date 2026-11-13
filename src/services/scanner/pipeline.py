@@ -253,8 +253,9 @@ class CardScanner:
                 feat = input[0].flatten().cpu().numpy()
                 features.append(feat)
 
-            # Find the linear layer
-            head = model.model.model[-1]
+            # Find the linear layer of the network that will actually run
+            from src.services.scanner.art_index import running_classifier_head
+            head = running_classifier_head(model)
             if hasattr(head, 'linear'):
                 handle = head.linear.register_forward_hook(hook)
             else:

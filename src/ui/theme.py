@@ -1,5 +1,7 @@
 from nicegui import ui
 
+from src.ui import pwa
+
 # Shared chart palette for the paper desk. Stamp, moss, brass, and ink
 # stay distinguishable on #F3EDE2 without a purple gradient.
 CHART_COLORS = [
@@ -809,6 +811,185 @@ a:hover { color: var(--oy-accent-deep); }
 """
 
 
+# ---------- Dark mode ----------
+# The light desk above stays exactly as it is. Dark mode only redefines the
+# tokens, so every rule that reads var(--oy-*) follows. The choice lives in
+# localStorage ('auto', 'light' or 'dark') and is applied in <head> before the
+# first paint, so a page never flashes the wrong theme.
+THEME_STORAGE_KEY = 'oy-theme'
+THEME_MODES = ('auto', 'light', 'dark')
+
+_DARK_TOKENS = """
+  color-scheme: dark;
+  --oy-bg: #16130f;
+  --oy-surface: #1f1b16;
+  --oy-surface-2: #2b261f;
+  --oy-border: #3b352c;
+  --oy-border-soft: #2f2a23;
+  --oy-text: #f1ebe0;
+  --oy-body-text: #d9d1c3;
+  --oy-muted: #a99f90;
+  --oy-faint: #8e8576;
+  --oy-soft: #a99f90;
+  --oy-placeholder: #7b7367;
+  --oy-accent: #e07a68;
+  --oy-accent-deep: #c9604e;
+  --oy-blue: #82b597;
+  --oy-green: #82b597;
+  --oy-red: #e07a68;
+  --oy-yellow: #d3ac64;
+  --oy-gold: #d3ac64;
+  --oy-ink: #16130f;
+"""
+
+# ui.colors() writes Quasar's palette as an inline style on <body>, so the dark
+# values need !important to win over it.
+_DARK_QUASAR = """
+  --q-primary: #f1ebe0 !important;
+  --q-secondary: #e07a68 !important;
+  --q-accent: #82b597 !important;
+  --q-dark: #2b261f !important;
+  --q-positive: #82b597 !important;
+  --q-negative: #e07a68 !important;
+  --q-info: #a99f90 !important;
+  --q-warning: #d3ac64 !important;
+"""
+
+
+def _dark_rules(root: str) -> str:
+    return f"""
+{root} {{{_DARK_TOKENS}}}
+{root} body {{{_DARK_QUASAR}}}
+{root} ::-webkit-scrollbar-thumb {{ background-color: #4a4338; }}
+{root} ::-webkit-scrollbar-thumb:hover {{ background-color: #6b6255; }}
+{root} .q-chip.bg-primary, {root} .q-chip.bg-primary .q-icon {{ color: var(--oy-ink) !important; }}
+{root} .oy-navlabel {{ color: var(--oy-faint); }}
+{root} .border-gray-300 {{ border-color: var(--oy-border); }}
+/* Quasar's .text-white is !important inside @layer quasar, and a layered
+   !important beats an unlayered one. Only an earlier layer (base) can win, so
+   filled buttons get dark ink on the bright dark-mode colours from there. */
+@layer base {{
+  {root} .q-btn.bg-primary, {root} .q-btn.bg-secondary, {root} .q-btn.bg-accent,
+  {root} .q-btn.bg-positive, {root} .q-btn.bg-negative, {root} .q-btn.bg-info,
+  {root} .q-btn.bg-warning, {root} .q-chip.bg-primary, {root} .q-chip.bg-secondary {{
+    color: var(--oy-ink) !important;
+  }}
+}}
+"""
+
+
+_THEME_SCRIPT = """
+<script>
+(function () {
+  var KEY = '%(key)s';
+  var MODES = ['auto', 'light', 'dark'];
+  function read() {
+    try {
+      var value = localStorage.getItem(KEY);
+      return MODES.indexOf(value) >= 0 ? value : 'auto';
+    } catch (error) {
+      return 'auto';
+    }
+  }
+  function sync(mode) {
+    document.querySelectorAll('.oy-theme-switch [data-mode]').forEach(function (button) {
+      button.setAttribute('aria-checked', String(button.getAttribute('data-mode') === mode));
+    });
+  }
+  function apply(mode) {
+    document.documentElement.setAttribute('data-oy-theme', mode);
+    sync(mode);
+  }
+  window.oySetTheme = function (mode) {
+    if (MODES.indexOf(mode) < 0) mode = 'auto';
+    try { localStorage.setItem(KEY, mode); } catch (error) {}
+    apply(mode);
+  };
+  apply(read());
+  document.addEventListener('DOMContentLoaded', function () { sync(read()); });
+  window.addEventListener('load', function () { sync(read()); });
+  window.addEventListener('storage', function (event) {
+    if (event.key === KEY) apply(read());
+  });
+})();
+</script>
+""" % {'key': THEME_STORAGE_KEY}
+
+THEME_HEAD = _THEME_SCRIPT + f"""
+<style>
+html {{ color-scheme: light; }}
+{_dark_rules('html[data-oy-theme="dark"]')}
+@media (prefers-color-scheme: dark) {{
+{_dark_rules('html[data-oy-theme="auto"]')}
+}}
+
+/* ---------- Theme switch ---------- */
+.oy-theme-switch {{
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--oy-surface);
+  border: 1px solid var(--oy-border);
+  border-radius: 2px;
+  flex: none;
+}}
+.oy-theme-switch button {{
+  all: unset;
+  box-sizing: border-box;
+  width: 34px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  color: var(--oy-muted);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}}
+.oy-theme-switch button:hover {{ color: var(--oy-text); }}
+.oy-theme-switch button:focus-visible {{ outline: 2px solid var(--oy-accent); outline-offset: 1px; }}
+.oy-theme-switch svg {{ width: 16px; height: 16px; display: block; }}
+.oy-theme-menu-row {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 16px;
+  min-height: 48px;
+}}
+html[data-oy-theme="auto"] .oy-theme-switch [data-mode="auto"],
+html[data-oy-theme="light"] .oy-theme-switch [data-mode="light"],
+html[data-oy-theme="dark"] .oy-theme-switch [data-mode="dark"] {{
+  background: var(--oy-surface-2);
+  color: var(--oy-text);
+}}
+</style>
+"""
+
+# IconKit outline icons (monitor, sun, moon), inlined so the switch needs no request.
+_THEME_ICONS = {
+    'auto': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg>',
+    'light': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9 6.7 6.7M17.3 17.3l1.8 1.8M4.9 19.1 6.7 17.3M17.3 6.7l1.8-1.8"/></svg>',
+    'dark': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 3A8.5 8.5 0 0 0 20 14.5 8.5 8.5 0 1 1 11.5 3Z"/></svg>',
+}
+_THEME_LABELS = {'auto': 'Sistema', 'light': 'Claro', 'dark': 'Oscuro'}
+
+THEME_SWITCH_HTML = (
+    '<div class="oy-theme-switch" role="radiogroup" aria-label="Tema">'
+    + ''.join(
+        f'<button type="button" role="radio" aria-checked="false" data-mode="{mode}" '
+        f'title="{_THEME_LABELS[mode]}" aria-label="{_THEME_LABELS[mode]}" '
+        f'onclick="window.oySetTheme(\'{mode}\')">{_THEME_ICONS[mode]}</button>'
+        for mode in THEME_MODES
+    )
+    + '</div>'
+)
+
+
+def theme_switch():
+    """Three-way theme switch: system, light, dark. It works in the browser only."""
+    return ui.html(THEME_SWITCH_HTML, sanitize=False)
+
 def apply_theme():
     """Applies the paper-and-ink desk. Stamp red is the only loud color."""
     ui.colors(
@@ -827,6 +1008,8 @@ def apply_theme():
 def install_global_styles() -> None:
     """Install the design system once for all NiceGUI pages."""
     ui.add_head_html(GLOBAL_CSS, shared=True)
+    ui.add_head_html(THEME_HEAD, shared=True)
+    ui.add_head_html(pwa.HEAD_HTML, shared=True)
 
 
 def page_header(title: str, subtitle: str | None = None):

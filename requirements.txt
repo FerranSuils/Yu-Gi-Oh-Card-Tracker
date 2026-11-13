@@ -15,3 +15,4 @@ numpy<2
 orjson
 beautifulsoup4
 werkzeug>=3.1,<4
+segno

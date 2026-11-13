@@ -16,7 +16,7 @@ from src.services.auth_service import (
     auth_service,
     get_storage_secret,
 )
-from src.ui.theme import apply_theme
+from src.ui.theme import apply_theme, theme_switch
 
 TEMP_AUTH_TOKEN_KEY = 'temp_auth_token'
 TEMP_AUTH_TOKEN_EXPIRY_KEY = 'temp_auth_token_expiry'
@@ -52,6 +52,13 @@ _FIELD_VALUES_JS = '''(e) => {
   });
 }'''
 
+
+# The login button sends the typed values to the Python handler. It must not
+# share the signup handler above, which creates an account.
+_LOGIN_FIELDS_JS = '''(e) => {
+  const card = (e && e.target && e.target.closest) ? (e.target.closest('.q-card') || document) : document;
+  emit([...card.querySelectorAll('input')].map((input) => input.value));
+}'''
 
 def _typed_pair(event, fallback_user, fallback_password):
     typed = list(getattr(event, 'args', None) or [])
@@ -214,7 +221,9 @@ def login_page(next_path: str | None = None) -> None:
             with ui.row().classes('oy-brand').on('click', lambda: ui.navigate.to('/login')):
                 ui.image('/brand/mark.svg').classes('oy-mark')
                 ui.label('OpenYuGi').classes('oy-logo')
-            ui.label('gratis').classes('oy-mono text-xs text-gray-500')
+            with ui.row().classes('items-center gap-3'):
+                ui.label('gratis').classes('oy-mono text-xs text-gray-500')
+                theme_switch()
         ui.separator()
 
         with ui.row().classes('w-full items-start gap-12 px-6 lg:px-16 py-16'):
@@ -239,7 +248,7 @@ def login_page(next_path: str | None = None) -> None:
                 submit = ui.button('Entrar al mostrador').props(
                     'color=secondary unelevated no-caps'
                 ).classes('w-full q-mt-sm')
-                submit.on('click', login, js_handler=_FIELD_VALUES_JS)
+                submit.on('click', login, js_handler=_LOGIN_FIELDS_JS)
                 ui.button('Crear cuenta', on_click=lambda: ui.navigate.to('/registro')).props(
                     'flat no-caps color=primary'
                 ).classes('w-full')
@@ -298,7 +307,9 @@ def register_page(next_path: str | None = None) -> None:
             with ui.row().classes('oy-brand').on('click', lambda: ui.navigate.to('/login')):
                 ui.image('/brand/mark.svg').classes('oy-mark')
                 ui.label('OpenYuGi').classes('oy-logo')
-            ui.label('gratis').classes('oy-mono text-xs text-gray-500')
+            with ui.row().classes('items-center gap-3'):
+                ui.label('gratis').classes('oy-mono text-xs text-gray-500')
+                theme_switch()
         ui.separator()
         with ui.row().classes('w-full justify-center px-6 py-16'):
             with ui.card().classes('oy-register w-full max-w-sm p-6 gap-3'):

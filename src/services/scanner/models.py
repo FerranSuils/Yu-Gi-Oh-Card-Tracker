@@ -26,6 +26,7 @@ class ScanRequest(BaseModel):
     options: Dict[str, Any]
     type: str = "Manual Scan"
     filename: str
+    owner: str = ""  # account that queued it; only that account sees it
 
 class ScanResult(BaseModel):
     """Final result for consumption by the UI/DB"""
@@ -50,6 +51,7 @@ class ScanResult(BaseModel):
 
 class ScanDebugReport(BaseModel):
     """Comprehensive state for the Debug Lab"""
+    owner: str = ""  # account whose scan this report describes
     logs: List[str] = []
     queue_len: int = 0
     paused: bool = True
