@@ -36,3 +36,9 @@ def test_stored_choice_defaults_to_system():
     script = theme.THEME_HEAD
     assert f"var KEY = '{theme.THEME_STORAGE_KEY}';" in script
     assert "return MODES.indexOf(value) >= 0 ? value : 'auto';" in script
+
+
+def test_tab_panels_take_the_page_background_in_both_modes():
+    # Quasar paints .q-tab-panels white; in dark mode the light text landed on it (Escanear → Debug Lab).
+    css = theme.GLOBAL_CSS
+    assert re.search(r'\.q-tab-panels\s*\{[^}]*background:\s*transparent', css)

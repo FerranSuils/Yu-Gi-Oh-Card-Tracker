@@ -188,6 +188,9 @@ a:hover { color: var(--oy-accent-deep); }
 }
 .collection-card { overflow: hidden; border-radius: 10px; }
 
+/* Quasar paints tab panels white, which left dark mode with light text on white */
+.q-tab-panels { background: transparent; }
+
 /* Legacy utility remaps: old pages use gray-* utilities everywhere */
 .bg-dark { background: var(--oy-surface) !important; }
 .bg-gray-900, .bg-gray-950 { background: rgba(255,255,255,.03) !important; }
