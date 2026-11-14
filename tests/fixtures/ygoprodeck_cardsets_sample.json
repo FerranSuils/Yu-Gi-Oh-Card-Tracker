@@ -1,0 +1,73 @@
+[
+ {
+  "set_name": "Crocs collaboration card",
+  "set_code": "CRC1",
+  "num_of_cards": 1
+ },
+ {
+  "set_name": "EFootball collaboration cards",
+  "set_code": "EFC1",
+  "num_of_cards": 1,
+  "set_image": "https://images.ygoprodeck.com/images/sets/EFC1.jpg"
+ },
+ {
+  "set_name": "THANK YOU PACK",
+  "set_code": "TYP1",
+  "num_of_cards": 30,
+  "tcg_date": "2026-07-22",
+  "set_image": "https://images.ygoprodeck.com/images/sets/TYP1.jpg"
+ },
+ {
+  "set_name": "Legendary Arc-V Decks",
+  "set_code": "LAVD",
+  "num_of_cards": 115,
+  "tcg_date": "2026-08-06",
+  "set_image": "https://images.ygoprodeck.com/images/sets/LAVD.jpg"
+ },
+ {
+  "set_name": "Magnificent Monsters",
+  "set_code": "MAMO",
+  "num_of_cards": 126,
+  "tcg_date": "2026-09-04",
+  "set_image": "https://images.ygoprodeck.com/images/sets/MAMO.jpg"
+ },
+ {
+  "set_name": "Beyond the Brave",
+  "set_code": "BETB",
+  "num_of_cards": 100,
+  "tcg_date": "2026-10-08",
+  "set_image": "https://images.ygoprodeck.com/images/sets/BETB.jpg"
+ },
+ {
+  "set_name": "Ultimate Tournament Pack 2",
+  "set_code": "UP02",
+  "num_of_cards": 49,
+  "tcg_date": "2026-11-05",
+  "set_image": "https://images.ygoprodeck.com/images/sets/UP02.jpg"
+ },
+ {
+  "set_name": "Magnificent Maestros",
+  "set_code": "MAMS",
+  "num_of_cards": 125,
+  "tcg_date": "2026-11-12",
+  "set_image": "https://images.ygoprodeck.com/images/sets/MAMS.jpg"
+ },
+ {
+  "set_name": "Glorious Victors",
+  "set_code": "GLVI",
+  "num_of_cards": 3,
+  "tcg_date": "2026-12-03",
+  "set_image": "https://images.ygoprodeck.com/images/sets/GLVI.jpg"
+ },
+ {
+  "set_name": "Maze of Machines",
+  "set_code": "MZMC",
+  "num_of_cards": 1,
+  "tcg_date": "2027-03-19"
+ },
+ {
+  "set_name": "Sin fecha",
+  "set_code": "NODT",
+  "num_of_cards": 3
+ }
+]
