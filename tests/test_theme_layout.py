@@ -77,5 +77,5 @@ def test_navigation_covers_every_protected_route():
     nav_routes = {route for _, route in NAV_ITEMS}
     assert nav_routes | {'/settings'} == {
         '/', '/collection', '/storage', '/sets', '/decks', '/bulk_add',
-        '/scan', '/import', '/csv', '/db_editor', '/settings',
+        '/scan', '/import', '/csv', '/db_editor', '/novedades', '/settings',
     }
