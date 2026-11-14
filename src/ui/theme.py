@@ -190,6 +190,7 @@ a:hover { color: var(--oy-accent-deep); }
 
 /* Quasar paints tab panels white, which left dark mode with light text on white */
 .q-tab-panels { background: transparent; }
+#upload-scans .q-uploader__header { color: var(--oy-ink) !important; }
 
 /* Legacy utility remaps: old pages use gray-* utilities everywhere */
 .bg-dark { background: var(--oy-surface) !important; }

@@ -19,6 +19,7 @@ from src.services.scanner import manager as scanner_service
 from src.services.scanner.manager import owner_name, recent_scans_path, report_for
 from src.core.account_scope import account_root
 from src.services.scanner import SCANNER_AVAILABLE
+from src.services.scanner import autocapture
 from src.services.scanner.upload import (MAX_PDF_BYTES, finished_notice, is_pdf, queued_notice, safe_upload_name,
                                          upload_images)
 from src.core.persistence import persistence
@@ -399,6 +400,8 @@ class ScanPage:
         self.camera_select = None
         self.start_btn = None
         self.stop_btn = None
+        self.auto_timer = None
+        self.auto_seconds = autocapture.DEFAULT_INTERVAL
         self.is_active = False
         self.default_condition = "Near Mint"
 
@@ -553,7 +556,7 @@ class ScanPage:
     @ui.refreshable
     def render_recent_scans_header(self):
         with ui.row().classes('w-full p-2 bg-white/[.03] border-b border-white/10 items-center justify-between gap-2 flex-nowrap overflow-x-auto'):
-            ui.label('Recent Scans').classes('oy-display text-base font-semibold text-white whitespace-nowrap px-2')
+            ui.label('Recent Scans').classes('oy-display text-base font-semibold oy-text-body whitespace-nowrap px-2')
 
             with ui.row().classes('items-center gap-1 flex-nowrap'):
                 # Undo
@@ -1691,7 +1694,27 @@ class ScanPage:
             logger.error(f"Error saving collection: {e}")
             ui.notify(f"Error saving collection: {e}", type='negative')
 
-    async def trigger_live_scan(self):
+    def set_auto_capture(self, on: bool) -> None:
+        """Look at the camera every few seconds, so cards can be slid under it one after another."""
+        if self.auto_timer is not None:
+            self.auto_timer.cancel()
+            if self.auto_timer in self._timers:
+                self._timers.remove(self.auto_timer)
+            self.auto_timer = None
+        if on:
+            self.auto_timer = ui.timer(self.auto_seconds, self.auto_tick)
+            self._timers.append(self.auto_timer)
+
+    def set_auto_interval(self, value, running: bool) -> None:
+        self.auto_seconds = autocapture.clean_interval(value)
+        if running:
+            self.set_auto_capture(True)
+
+    async def auto_tick(self) -> None:
+        if autocapture.should_capture(scanner_service.scanner_manager.is_idle(self.owner)):
+            await self.trigger_live_scan(quiet=True)
+
+    async def trigger_live_scan(self, quiet: bool = False):
         """Triggers a scan from the Live Tab using current settings."""
         try:
             # Ensure scanner is running (unpause if needed)
@@ -1700,7 +1723,8 @@ class ScanPage:
 
             data_url = await ui.run_javascript(f'captureSingleFrame(true, {self.scan_overlay_duration}, {self.rotation})')
             if not data_url:
-                ui.notify("Camera not active or ready", type='warning')
+                if not quiet:
+                    ui.notify("Camera not active or ready", type='warning')
                 return
 
             header, encoded = data_url.split(",", 1)
@@ -1722,9 +1746,11 @@ class ScanPage:
             if not self.consumer_timer:
                 self.consumer_timer = ui.timer(0.1, self.event_consumer)
                 self._timers.append(self.consumer_timer)
-            ui.notify("Captured to Queue", type='positive')
+            if not quiet:
+                ui.notify("Captured to Queue", type='positive')
         except Exception as e:
-            ui.notify(f"Capture failed: {e}", type='negative')
+            if not quiet:
+                ui.notify(f"Capture failed: {e}", type='negative')
 
     def refresh_debug_ui(self):
         self.render_debug_results.refresh()
@@ -2240,7 +2266,7 @@ def scan_page():
             with ui.row().classes('w-full h-[calc(100vh-140px)] gap-0 flex-nowrap'):
 
                 # LEFT PANEL: Camera & Status
-                with ui.column().classes('w-1/2 h-full p-2 gap-2 bg-black'):
+                with ui.column().classes('w-1/2 h-full p-2 gap-2 bg-dark'):
 
                     # Camera Controls & Status
                     with ui.card().classes('w-full p-2 bg-gray-900 border border-gray-700'):
@@ -2263,6 +2289,12 @@ def scan_page():
 
                     # Capture Button
                     ui.button('Capture & Scan', on_click=page.trigger_live_scan).props('icon=camera color=secondary size=lg id=btn-live-scan').classes('w-full font-bold')
+
+                    # Continuous mode: slide cards under the camera, one every few seconds
+                    with ui.row().classes('w-full items-center gap-2 no-wrap'):
+                        auto_switch = ui.switch('Captura automática', on_change=lambda e: page.set_auto_capture(e.value))                             .props('color=secondary id=auto-capture-switch')
+                        ui.select({s: autocapture.interval_label(s) for s in autocapture.INTERVALS}, value=page.auto_seconds,
+                                  on_change=lambda e: page.set_auto_interval(e.value, auto_switch.value))                             .props('dense outlined options-dense id=auto-capture-interval').classes('w-32')
 
                     # Scanned images from the phone gallery, a flatbed scanner or a folder
                     ui.upload(label='Subir imágenes o PDF escaneado', on_upload=page.handle_debug_upload,

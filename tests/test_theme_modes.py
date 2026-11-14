@@ -42,3 +42,7 @@ def test_tab_panels_take_the_page_background_in_both_modes():
     # Quasar paints .q-tab-panels white; in dark mode the light text landed on it (Escanear → Debug Lab).
     css = theme.GLOBAL_CSS
     assert re.search(r'\.q-tab-panels\s*\{[^}]*background:\s*transparent', css)
+
+
+def test_the_scan_upload_header_uses_the_ink_colour_so_it_reads_in_both_modes():
+    assert re.search(r'#upload-scans \.q-uploader__header\s*\{[^}]*color:\s*var\(--oy-ink\)', theme.GLOBAL_CSS)
