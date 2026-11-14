@@ -18,6 +18,7 @@ NAV_ITEMS = [
     ('Importar', '/import'),
     ('CSV', '/csv'),
     ('Base de cartas', '/db_editor'),
+    ('Novedades', '/novedades'),
 ]
 
 PRIMARY_ROUTES = ['/collection', '/storage', '/decks', '/sets', '/bulk_add', '/scan']
@@ -40,7 +41,7 @@ def nav_items(profile: AccountProfile) -> list[tuple[str, str]]:
 def menu_routes(nav_by_route: dict) -> list[str]:
     """Routes of the "Más" menu; the catalog goes here too so phones can reach it."""
     extra = [route for route in SHOP_ROUTES + ('/catalog',) if route in nav_by_route]
-    return ['/', *extra, '/import', '/csv', '/db_editor', '/settings']
+    return ['/', '/novedades', *extra, '/import', '/csv', '/db_editor', '/settings']
 
 
 def _display_name(filename: str) -> str:

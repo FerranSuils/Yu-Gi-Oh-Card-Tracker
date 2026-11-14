@@ -42,6 +42,7 @@ from src.ui.settings import settings_page
 from src.ui.catalog import catalog_page
 from src.ui.game_collection import game_collection_page
 from src.ui import pwa
+from src.ui.novedades import novedades_page
 from src.ui.theme import install_global_styles
 from src.api.routes import router as api_router
 from src.services.shop.public_api import build_router as build_shop_api
@@ -195,6 +196,15 @@ def game_collection(game: str):
 @ui.page('/settings')
 def settings():
     create_layout(settings_page)
+
+@ui.page('/novedades')
+def novedades():
+    create_layout(novedades_page)
+
+# Daily refresh of reference data (set release dates). Set OPENYUGI_DISABLE_PRICE_SCHEDULER=1 to turn off.
+if os.environ.get('OPENYUGI_DISABLE_PRICE_SCHEDULER', '').lower() not in {'1', 'true', 'yes'}:
+    from src.services.reference.scheduler import start_scheduler
+    app.on_startup(start_scheduler)
 
 # Serve images
 os.makedirs('data/images', exist_ok=True)
