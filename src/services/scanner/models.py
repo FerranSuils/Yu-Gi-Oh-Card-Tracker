@@ -49,6 +49,13 @@ class ScanResult(BaseModel):
     source_file: Optional[str] = None # Name of the uploaded or captured file this card came from
     # For UI display
     raw_ocr: Optional[List[OCRResult]] = None
+    # Visual suggestions (grading.py). Only hints: None / 0.0 means "could not decide".
+    suggested_condition: Optional[str] = None   # app literal, e.g. "Near Mint"
+    condition_label: Optional[str] = None       # CardTrader label NM/SP/MP/PL/PO
+    condition_confidence: float = 0.0
+    suggested_rarity: Optional[str] = None      # one of the candidate rarities
+    rarity_confidence: float = 0.0
+    rarity_hints: Optional[Dict[str, Any]] = None  # name colour scores etc. for debugging
 
 class ScanDebugReport(BaseModel):
     """Comprehensive state for the Debug Lab"""
