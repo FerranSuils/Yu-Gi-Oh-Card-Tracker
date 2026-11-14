@@ -38,8 +38,8 @@ def finished_notice(data: dict) -> tuple[str, str] | None:
 
 # --- PDFs from a document scanner: one card per page ---------------------
 
-MAX_PDF_BYTES = 80 * 1024 * 1024
-MAX_PDF_PAGES = 300
+MAX_PDF_BYTES = 300 * 1024 * 1024
+MAX_PDF_PAGES = 500
 MIN_PAGE_IMAGE_SIDE = 120  # smaller pictures are logos or stamps, not a scanned card
 
 
