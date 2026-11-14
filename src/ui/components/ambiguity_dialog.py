@@ -6,6 +6,7 @@ import asyncio
 from src.core.utils import is_set_code_compatible, normalize_set_code, transform_set_code, REGION_TO_LANGUAGE_MAP
 from src.services.ygo_api import ygo_service
 from src.services.image_manager import image_manager
+from src.services.scanner import grading
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,12 @@ class AmbiguityDialog(ui.dialog):
         self.other_set_code_val = ""
 
         self.selected_rarity = scan_result.get('rarity') or scan_result.get('visual_rarity')
+        # Visual suggestion (grading.py): only preselects among real candidate rarities.
+        self.suggested_rarity = scan_result.get('suggested_rarity')
+        _top_code = scan_result.get('set_code')
+        _cand_rarities = [c.get('rarity') for c in self.candidates
+                          if c.get('rarity') and (not _top_code or c.get('set_code') == _top_code)]
+        self.selected_rarity = grading.pick_rarity(self.suggested_rarity, self.selected_rarity, _cand_rarities)
         self.selected_language = scan_result.get('language', 'EN')
         self.selected_first_ed = scan_result.get('first_edition', False)
 
@@ -130,6 +137,8 @@ class AmbiguityDialog(ui.dialog):
                      label="Rarity",
                      on_change=lambda e: setattr(self, 'selected_rarity', e.value)
                  ).classes('w-full')
+                 if self.suggested_rarity and self.suggested_rarity == self.selected_rarity:
+                     ui.label("Rareza sugerida por el aspecto visual (estimacion, revisa)")                          .classes('text-xs text-gray-400')
 
                  # 7. 1st Edition
                  ui.checkbox("1st Edition", value=self.selected_first_ed,

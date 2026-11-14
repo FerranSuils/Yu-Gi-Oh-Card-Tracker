@@ -98,6 +98,26 @@ The scanner uses a weighted scoring system to rank database candidates against t
 
 **Virtual Candidates**: If the scanner finds a "Normalized Match" (e.g., German card scanned, only English in DB), it injects a "Virtual Candidate" with the scanned Set Code (`MRD-DE...`) and gives it a score boost (+12) to ensure it appears as the top result, allowing you to add the localized variant to your DB automatically.
 
+### Condition and rarity hints (suggestions only)
+
+After the card is identified, `src/services/scanner/grading.py` adds two optional **suggestions** to the scan result. They never overwrite anything you chose: if the module is not confident, nothing is suggested and the usual defaults apply. You can always change both values.
+
+**Condition** (CardTrader labels mapped to the app's literals):
+
+| CardTrader | App condition |
+| :--- | :--- |
+| NM Near Mint | Near Mint |
+| SP Slightly Played | Excellent |
+| MP Moderately Played | Good |
+| PL Played | Played |
+| PO Poor | Poor |
+
+The estimate looks at whitening of the dark outer border, corner wear and noise in the frame margins of the rectified image. It is only proposed when its confidence is at least 0.6 (and confidence is capped at 0.8). It does **not** assess surface scratches on the art or foil, creases that do not show on the border, or print defects. Glare, a bad crop, or a small image lower the confidence or switch the suggestion off. A suggested condition is applied when you confirm the scan (the notification says so); with no suggestion, your default condition is used.
+
+**Rarity**: the colour of the name text (black, white, silver, gold, red, rainbow) and weak foil cues (illustration sparkle, rainbow sheen in the description box) are used to **rank the rarities already known for the identified set code**, following the CardTrader print guide. Only when one candidate clearly beats the others is it preselected in the Ambiguity Dialog (marked as a suggestion). It never invents a rarity that is not in the database. Rarities that look the same by colour (e.g. Ultra Rare vs Ultimate Rare, Secret vs Ultra Secret) cannot be told apart, so nothing is suggested for them. Foil texture patterns (Starfoil, Mosaic, Shatterfoil...) are not recognised reliably.
+
+**Validation status**: the thresholds were only tested with synthetic images. They have not been calibrated against real photographs, so treat the hints as a convenience, not as grading.
+
 ---
 
 ## 5. Advanced Configuration (Debug Lab)

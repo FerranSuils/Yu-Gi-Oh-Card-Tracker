@@ -30,6 +30,7 @@ from src.services.undo_service import UndoService
 from src.services.ygo_api import ygo_service
 from src.services.image_manager import image_manager
 from src.ui.components.ambiguity_dialog import AmbiguityDialog
+from src.services.scanner import grading
 from src.ui.components.filter_pane import FilterPane
 from src.ui.components.single_card_view import SingleCardView
 from src.ui.page_lifecycle import cleanup_when_client_is_deleted
@@ -1302,6 +1303,8 @@ class ScanPage:
 
         # Add to Collection
         card_id = result_dict.get('card_id')
+        # Visual condition suggestion (only when confident; otherwise the user's default)
+        entry_condition = grading.pick_condition(result_dict, self.default_condition)
         if card_id:
             api_card = ygo_service.get_card(card_id)
             if not api_card:
@@ -1327,7 +1330,7 @@ class ScanPage:
                 rarity=result_dict.get('rarity'),
                 language=result_dict.get('language', 'EN'),
                 quantity=1,
-                condition=self.default_condition,
+                condition=entry_condition,
                 first_edition=result_dict.get('first_edition', False),
                 image_id=result_dict.get('image_id'),
                 variant_id=result_dict.get('variant_id'),
@@ -1354,7 +1357,7 @@ class ScanPage:
                 'set_code': result_dict.get('set_code'),
                 'rarity': result_dict.get('rarity'),
                 'language': result_dict.get('language', 'EN'),
-                'condition': self.default_condition,
+                'condition': entry_condition,
                 'first_edition': result_dict.get('first_edition', False),
                 'variant_id': result_dict.get('variant_id'),
                 'image_id': result_dict.get('image_id'),
@@ -1369,7 +1372,7 @@ class ScanPage:
                 {
                     'set_code': result_dict.get('set_code'),
                     'rarity': result_dict.get('rarity'),
-                    'condition': self.default_condition,
+                    'condition': entry_condition,
                     'language': result_dict.get('language', 'EN'),
                     'first_edition': result_dict.get('first_edition', False)
                 },
@@ -1378,7 +1381,10 @@ class ScanPage:
 
             self.save_recent_scans()
             await self.load_data()
-            ui.notify(f"Added: {result_dict.get('name')}", type='positive')
+            msg = f"Added: {result_dict.get('name')}"
+            if result_dict.get('suggested_condition') and entry_condition == result_dict.get('suggested_condition'):
+                msg += f" (estado sugerido: {result_dict.get('condition_label') or entry_condition}, estimacion: revisa)"
+            ui.notify(msg, type='positive')
 
     async def event_consumer(self):
         """Consumes events from the local queue and updates UI."""
