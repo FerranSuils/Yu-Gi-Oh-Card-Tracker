@@ -46,3 +46,9 @@ def test_tab_panels_take_the_page_background_in_both_modes():
 
 def test_the_scan_upload_header_uses_the_ink_colour_so_it_reads_in_both_modes():
     assert re.search(r'#upload-scans \.q-uploader__header\s*\{[^}]*color:\s*var\(--oy-ink\)', theme.GLOBAL_CSS)
+
+
+def test_the_multi_select_bar_and_picked_cards_use_theme_tokens_so_they_read_in_both_modes():
+    css = theme.GLOBAL_CSS
+    assert re.search(r'\.oy-bulk-bar\s*\{[^}]*background:\s*var\(--oy-surface\)', css)
+    assert re.search(r'\.oy-picked\s*\{[^}]*outline:[^;}]*var\(--oy-accent\)', css)

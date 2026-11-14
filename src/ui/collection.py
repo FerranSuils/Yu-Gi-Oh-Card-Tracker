@@ -13,6 +13,9 @@ from src.ui.theme import METRIC_VALUE_CLASSES, page_header
 from src.services.collection_editor import CollectionEditor
 from src.services.pricing_service import pricing_service
 from src.ui.components.pricing_bar import render_pricing_bar
+from src.ui.components import bulk_actions
+from src.ui.icons import icon as ik_icon
+from src.services.bulk_selection import BulkSelection, bulk_target
 from src.core.collection_sync import RevisionWatcher
 from dataclasses import dataclass, field, replace
 from typing import List, Optional, Dict, Set, Callable
@@ -421,6 +424,8 @@ class CollectionPage:
         self.pagination_showing_label = None
         self.pagination_total_label = None
         self.api_card_map = {}
+        self.bulk = BulkSelection()
+        self._ticks = {}
         self.save_task = None
         self.metrics = None
 
@@ -1433,6 +1438,134 @@ class CollectionPage:
 
     # --- Renderers ---
 
+    # ---- multi-select -------------------------------------------------------------------------
+    def collection_label(self, filename: Optional[str] = None) -> str:
+        name = filename or self.state['selected_file'] or ''
+        return name.rsplit('.', 1)[0] if name.endswith(('.json', '.yaml', '.yml')) else name
+
+    def item_clicked(self, item, opener):
+        """A click opens the card, or ticks it while the user is picking several."""
+        if self.bulk.active:
+            self.toggle_pick(item)
+            return None
+        return opener()
+
+    def toggle_pick(self, item) -> None:
+        self.bulk.toggle(item)
+        self._paint_tick(item)
+        self.render_bulk_bar.refresh()
+
+    def _paint_tick(self, item) -> None:
+        refs = self._ticks.get(bulk_target(item))
+        if refs:
+            box, shell = refs
+            on = self.bulk.has(item)
+            box.value = on
+            if shell is not None:
+                if on:
+                    shell.classes(add='oy-picked')
+                else:
+                    shell.classes(remove='oy-picked')
+
+    def _tick(self, item, classes: str, shell=None) -> None:
+        """The checkbox of one card; only owned cards can be ticked."""
+        if not self.bulk.active or not item.is_owned:
+            return
+        box = ui.checkbox(value=self.bulk.has(item)).props('dense color=secondary keep-color') \
+            .classes(f'oy-tick {classes} bg-white rounded pointer-events-none')
+        self._ticks[bulk_target(item)] = (box, shell)
+        if shell is not None and self.bulk.has(item):
+            shell.classes(add='oy-picked')
+
+    async def set_picking(self, on: bool) -> None:
+        if on:
+            self.bulk.start()
+        else:
+            self.bulk.stop()
+        self.render_header.refresh()
+        self.render_bulk_bar.refresh()
+        self.render_card_display.refresh()
+
+    def pick_page(self) -> None:
+        start = (self.state['page'] - 1) * self.state['page_size']
+        self.bulk.select_all(self.state['filtered_items'][start:start + self.state['page_size']])
+        self.render_bulk_bar.refresh()
+        self.render_card_display.refresh()
+
+    def pick_all(self) -> None:
+        self.bulk.select_all(self.state['filtered_items'])
+        self.render_bulk_bar.refresh()
+        self.render_card_display.refresh()
+
+    def pick_none(self) -> None:
+        self.bulk.clear()
+        self.render_bulk_bar.refresh()
+        self.render_card_display.refresh()
+
+    async def bulk_commit(self, mutate, message: str) -> None:
+        """Applies a change to the open collection, saves it now and shows the result."""
+        col = self.state['current_collection']
+        if not col or not self.state['selected_file']:
+            ui.notify('No hay colección abierta.', type='negative')
+            return
+        if self.save_task:
+            self.save_task.cancel()
+            self.save_task = None
+        try:
+            count = mutate(col)
+            await run.io_bound(persistence.save_collection, col, self.state['selected_file'])
+        except Exception as e:
+            logger.error(f"Bulk change failed: {e}", exc_info=True)
+            ui.notify(f'No se pudo guardar el cambio: {e}', type='negative')
+            await self.load_data(keep_page=True)
+            return
+        self.bulk.stop()
+        await self.load_data(keep_page=True)
+        self.render_header.refresh()
+        self.render_bulk_bar.refresh()
+        self.render_card_display.refresh()
+        ui.notify(message.format(n=count), type='positive')
+
+    async def bulk_transfer(self, filename: str, targets) -> None:
+        """Moves the ticked cards to another collection. The destination is saved first so nothing can be lost."""
+        source = self.state['current_collection']
+        try:
+            other = await run.io_bound(persistence.load_collection, filename)
+            moved = CollectionEditor.transfer(source, other, targets)
+            await run.io_bound(persistence.save_collection, other, filename)
+        except Exception as e:
+            logger.error(f"Bulk transfer failed: {e}", exc_info=True)
+            ui.notify(f'No se pudo mover: {e}', type='negative')
+            await self.load_data(keep_page=True)
+            return
+        await self.bulk_commit(lambda c: moved, 'Movidas {n} cartas a «' + self.collection_label(filename) + '».')
+
+    @ui.refreshable
+    def render_bulk_bar(self):
+        if not self.bulk.active:
+            return
+        count = self.bulk.count()
+        with ui.row().classes('oy-bulk-bar w-full items-center gap-2 q-pa-sm rounded border').props('id=bulk-bar'):
+            ui.label(f'{count} seleccionadas' if count != 1 else '1 seleccionada').classes('font-bold').props('id=bulk-count')
+            ui.button('Esta página', on_click=self.pick_page).props('flat dense no-caps id=bulk-page')
+            ui.button('Todo el filtro', on_click=self.pick_all).props('flat dense no-caps id=bulk-all')
+            ui.button('Ninguna', on_click=self.pick_none).props('flat dense no-caps id=bulk-none')
+            ui.space()
+            for label, name, handler, color in (
+                ('Cantidades', 'edit', lambda: bulk_actions.open_quantities(self), 'secondary'),
+                ('Almacén', 'package-box', lambda: bulk_actions.open_storage(self), 'secondary'),
+                ('Mover a colección', 'arrow-right', lambda: bulk_actions.open_transfer(self), 'secondary'),
+                ('Eliminar', 'trash', lambda: bulk_actions.open_delete(self), 'negative'),
+            ):
+                with ui.button(on_click=handler).props(f'no-caps dense color={color} id=bulk-{name}') as button:
+                    ik_icon(name)
+                    ui.label(label).classes('q-ml-xs')
+                if not count:
+                    button.disable()
+            with ui.button(on_click=lambda: self.set_picking(False)).props('flat dense no-caps id=bulk-cancel'):
+                ik_icon('x')
+                ui.label('Cancelar').classes('q-ml-xs')
+
     def render_consolidated_grid(self, items: List[CardViewModel]):
         with ui.element('div').classes(f'grid {CARD_GRID_COLUMNS} gap-4 w-full'):
             for vm in items:
@@ -1441,15 +1574,16 @@ class CollectionPage:
                 border = "border-accent" if vm.is_owned else "border-gray-700"
 
                 with ui.card().classes(f'collection-card w-full p-0 cursor-pointer {opacity} border {border} hover:scale-105 transition-transform') \
-                        .on('click', lambda c=vm: self.open_single_view(c.api_card, c.is_owned, c.owned_quantity, owned_languages=c.owned_languages)):
+                        .on('click', lambda c=vm: self.item_clicked(c, lambda: self.open_single_view(c.api_card, c.is_owned, c.owned_quantity, owned_languages=c.owned_languages))) as shell:
 
                     img_id = card.get_best_image_id()
                     img_src = f"/images/{img_id}.jpg" if image_manager.image_exists(img_id) else (card.card_images[0].image_url_small if card.card_images else None)
 
                     with ui.element('div').classes('relative w-full aspect-[2/3] bg-black'):
                         if img_src: ui.image(img_src).classes('w-full h-full object-cover')
+                        self._tick(vm, 'absolute top-1 right-1 z-10', shell)
                         if vm.owned_quantity > 0:
-                            ui.label(f"{vm.owned_quantity}").classes('absolute top-1 right-1 bg-accent text-dark font-bold px-2 rounded-full text-xs')
+                            ui.label(f"{vm.owned_quantity}").classes(f'absolute top-1 {"right-9" if self.bulk.active else "right-1"} bg-accent text-dark font-bold px-2 rounded-full text-xs')
 
                         if card.level:
                              ui.label(f"Lv {card.level}").classes('absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 rounded')
@@ -1463,6 +1597,8 @@ class CollectionPage:
     def render_consolidated_list(self, items: List[CardViewModel]):
          headers = ['Image', 'Name', 'Type', 'Card Type', 'Owned']
          cols = '60px 4fr 2fr 2fr 1fr'
+         if self.bulk.active:
+             headers, cols = [''] + headers, '36px ' + cols
          with ui.column().classes('w-full gap-1'):
             with ui.grid(columns=cols).classes('w-full bg-gray-800 p-2 font-bold rounded'):
                 for h in headers: ui.label(h)
@@ -1474,7 +1610,12 @@ class CollectionPage:
                 img_src = f"/images/{img_id}.jpg" if image_manager.image_exists(img_id) else (card.card_images[0].image_url_small if card.card_images else None)
 
                 with ui.grid(columns=cols).classes(f'w-full {bg} p-1 items-center rounded hover:bg-gray-700 transition cursor-pointer') \
-                        .on('click', lambda c=vm: self.open_single_view(c.api_card, c.is_owned, c.owned_quantity, owned_languages=c.owned_languages)):
+                        .on('click', lambda c=vm: self.item_clicked(c, lambda: self.open_single_view(c.api_card, c.is_owned, c.owned_quantity, owned_languages=c.owned_languages))) as shell:
+                    if self.bulk.active:
+                        if vm.is_owned:
+                            self._tick(vm, '', shell)
+                        else:
+                            ui.label('')
                     with ui.image(img_src).classes('h-10 w-8 object-cover'):
                          self._setup_card_tooltip(card)
                     with ui.column().classes('gap-0'):
@@ -1502,6 +1643,8 @@ class CollectionPage:
         else:
             headers = ['Carta', 'Código', 'Estado', 'Lugar', 'Tienes']
             cols = '4fr 1.4fr 1fr 1.6fr 0.7fr'
+        if self.bulk.active:
+            headers, cols = [''] + headers, '36px ' + cols
 
         with ui.column().classes('w-full gap-0'):
             with ui.grid(columns=cols).classes('w-full px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500'):
@@ -1521,12 +1664,17 @@ class CollectionPage:
 
                 with ui.grid(columns=cols).classes(
                     'w-full px-3 py-3 items-center border-b border-gray-300 cursor-pointer'
-                ).on('click', lambda c=item: self.open_single_view(
+                ).on('click', lambda c=item: self.item_clicked(c, lambda: self.open_single_view(
                     c.api_card, c.is_owned, c.owned_count, initial_set=c.set_code, rarity=c.rarity,
                     set_name=c.set_name, language=c.language, condition=c.condition,
                     first_edition=c.first_edition, image_url=c.image_url, image_id=c.image_id,
                     set_price=c.price, variant_id=c.variant_id,
-                )):
+                ))) as shell:
+                    if self.bulk.active:
+                        if item.is_owned:
+                            self._tick(item, '', shell)
+                        else:
+                            ui.label('')
                     ui.label(item.api_card.name).classes('truncate text-sm font-medium')
                     ui.label(item.set_code or '—').classes('text-xs oy-mono text-gray-500')
                     ui.label(state).classes('text-sm')
@@ -1552,7 +1700,7 @@ class CollectionPage:
                     img_src = f"/images/{img_id}.jpg"
 
                 with ui.card().classes(f'collection-card w-full p-0 cursor-pointer {opacity} border {border} hover:scale-105 transition-transform') \
-                        .on('click', lambda c=item: self.open_single_view(c.api_card, c.is_owned, c.owned_count, initial_set=c.set_code, rarity=c.rarity, set_name=c.set_name, language=c.language, condition=c.condition, first_edition=c.first_edition, image_url=c.image_url, image_id=c.image_id, set_price=c.price, variant_id=c.variant_id)):
+                        .on('click', lambda c=item: self.item_clicked(c, lambda: self.open_single_view(c.api_card, c.is_owned, c.owned_count, initial_set=c.set_code, rarity=c.rarity, set_name=c.set_name, language=c.language, condition=c.condition, first_edition=c.first_edition, image_url=c.image_url, image_id=c.image_id, set_price=c.price, variant_id=c.variant_id))) as shell:
 
                     with ui.element('div').classes('relative w-full aspect-[2/3] bg-black'):
                         if img_src: ui.image(img_src).classes('w-full h-full object-cover')
@@ -1565,8 +1713,9 @@ class CollectionPage:
                         else:
                             ui.label(lang_code).classes('absolute top-[1px] left-[1px] text-xs font-bold shadow-black drop-shadow-md bg-black/30 rounded px-1')
 
+                        self._tick(item, 'absolute top-1 right-1 z-10', shell)
                         if item.is_owned:
-                             ui.label(f"{item.owned_count}").classes('absolute top-1 right-1 bg-accent text-dark font-bold px-2 rounded-full text-xs')
+                             ui.label(f"{item.owned_count}").classes(f'absolute top-1 {"right-9" if self.bulk.active else "right-1"} bg-accent text-dark font-bold px-2 rounded-full text-xs')
 
                         cond_short = cond_map.get(item.condition, item.condition[:2].upper())
                         ed_text = "1st" if item.first_edition else ""
@@ -1751,6 +1900,12 @@ class CollectionPage:
                     .props('outline color=grey-5' if is_grid else 'unelevated color=secondary'):
                     ui.tooltip('Show cards in a list layout')
 
+            with ui.button(on_click=lambda: self.set_picking(not self.bulk.active)).props(
+                    f'{"unelevated color=secondary" if self.bulk.active else "outline color=grey-5"} no-caps id=bulk-toggle'):
+                ik_icon('check')
+                ui.label('Seleccionar').classes('q-ml-xs')
+                ui.tooltip('Marca varias cartas para quitarlas, moverlas o cambiarles el almacén o la cantidad')
+
             ui.space()
 
             # Undo Button
@@ -1865,6 +2020,7 @@ class CollectionPage:
 
     @ui.refreshable
     def render_card_display(self):
+        self._ticks = {}
         start = (self.state['page'] - 1) * self.state['page_size']
         end = min(start + self.state['page_size'], len(self.state['filtered_items']))
         page_items = self.state['filtered_items'][start:end]
@@ -1936,6 +2092,7 @@ class CollectionPage:
                  self.filter_pane.build()
 
         self.render_header()
+        self.render_bulk_bar()
         # Market value, sale value and the «Precios…» dialog; filled once the collection loads.
         self.pricing_container = ui.element('div').classes('w-full')
         # The nightly reprice may rewrite this file; reload rather than later saving an older copy.

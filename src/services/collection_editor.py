@@ -1,10 +1,15 @@
 from src.core.models import Collection, CollectionCard, CollectionVariant, CollectionEntry, ApiCard
 from src.core.utils import generate_variant_id
-from typing import Optional
+import copy
+from typing import List, Optional, Tuple
 
 from src.core.pricing_models import apply_list_price
 from src.core import stock_moves
 from src.core.sales_models import SaleLine
+
+# What a bulk action points at: (card_id, variant_id, language, condition, first_edition).
+# None means "any", so a whole card is (card_id, None, None, None, None) and a collector row names all five.
+BulkTarget = Tuple[int, Optional[str], Optional[str], Optional[str], Optional[bool]]
 
 
 def _ygo_id(line: SaleLine):
@@ -319,3 +324,114 @@ class CollectionEditor:
                         modified = True
 
         return modified
+
+    @staticmethod
+    def select_entries(collection: Collection, targets: List[BulkTarget]):
+        """Every (card, variant, entry) that one of the targets points at, each only once."""
+        found, seen = [], set()
+        for card in collection.cards:
+            for variant in card.variants:
+                for entry in variant.entries:
+                    for card_id, variant_id, language, condition, first in targets:
+                        if (card.card_id == card_id
+                                and variant_id in (None, variant.variant_id)
+                                and language in (None, entry.language)
+                                and condition in (None, entry.condition)
+                                and first in (None, entry.first_edition)):
+                            if id(entry) not in seen:
+                                seen.add(id(entry))
+                                found.append((card, variant, entry))
+                            break
+        return found
+
+    @staticmethod
+    def _drop_empty(collection: Collection) -> None:
+        for card in collection.cards:
+            for variant in card.variants:
+                variant.entries = [e for e in variant.entries if e.quantity > 0]
+            card.variants = [v for v in card.variants if v.entries]
+        collection.cards = [c for c in collection.cards if c.variants]
+
+    @staticmethod
+    def bulk_remove(collection: Collection, targets: List[BulkTarget]) -> int:
+        """Removes every selected copy. Returns how many cards left the collection."""
+        picked = CollectionEditor.select_entries(collection, targets)
+        removed = sum(entry.quantity for _, _, entry in picked)
+        for _, _, entry in picked:
+            entry.quantity = 0
+        CollectionEditor._drop_empty(collection)
+        return removed
+
+    @staticmethod
+    def _merge_entries(variant: CollectionVariant) -> None:
+        """Entries are unique by condition, language, edition and place: equal ones add up, the one that has a sale price keeps it."""
+        merged = {}
+        for entry in variant.entries:
+            key = (entry.condition, entry.language, entry.first_edition, entry.storage_location)
+            if key in merged:
+                merged[key].quantity += entry.quantity
+                if merged[key].list_price is None and entry.list_price is not None:
+                    merged[key].list_price, merged[key].price_locked = entry.list_price, entry.price_locked
+            else:
+                merged[key] = entry
+        variant.entries = list(merged.values())
+
+    @staticmethod
+    def bulk_assign_storage(collection: Collection, targets: List[BulkTarget], storage: Optional[str]) -> int:
+        """Puts every selected copy in this storage (None = no place). Returns how many cards were affected."""
+        picked = CollectionEditor.select_entries(collection, targets)
+        touched = {}
+        count = 0
+        for _, variant, entry in picked:
+            if entry.storage_location != storage:
+                entry.storage_location = storage
+                count += entry.quantity
+            touched[id(variant)] = variant
+        for variant in touched.values():
+            CollectionEditor._merge_entries(variant)
+        return count
+
+    @staticmethod
+    def set_entry_quantity(collection: Collection, card_id: int, variant_id: str, language: str, condition: str,
+                           first_edition: bool, storage_location: Optional[str], quantity: int) -> bool:
+        """Sets the number of one stack of cards; 0 removes it."""
+        for card in collection.cards:
+            if card.card_id != card_id:
+                continue
+            for variant in card.variants:
+                if variant.variant_id != variant_id:
+                    continue
+                for entry in variant.entries:
+                    if (entry.language == language and entry.condition == condition and
+                            entry.first_edition == first_edition and entry.storage_location == storage_location):
+                        if entry.quantity == quantity:
+                            return False
+                        entry.quantity = max(0, quantity)
+                        CollectionEditor._drop_empty(collection)
+                        return True
+        return False
+
+    @staticmethod
+    def transfer(source: Collection, target: Collection, targets: List[BulkTarget]) -> int:
+        """Moves the selected copies into another collection, adding to the stacks it already has."""
+        if source is target:
+            return 0
+        picked = CollectionEditor.select_entries(source, targets)
+        moved = 0
+        for card, variant, entry in picked:
+            dest_card = next((c for c in target.cards if c.card_id == card.card_id), None)
+            if dest_card is None:
+                dest_card = CollectionCard(card_id=card.card_id, name=card.name)
+                target.cards.append(dest_card)
+            dest_variant = next((v for v in dest_card.variants if v.variant_id == variant.variant_id), None)
+            if dest_variant is None:
+                dest_variant = CollectionVariant(variant_id=variant.variant_id, set_code=variant.set_code,
+                                                 rarity=variant.rarity, image_id=variant.image_id)
+                dest_card.variants.append(dest_variant)
+            dest_variant.entries.append(copy.deepcopy(entry))
+            CollectionEditor._merge_entries(dest_variant)
+            moved += entry.quantity
+        for _, _, entry in picked:
+            entry.quantity = 0
+        CollectionEditor._drop_empty(source)
+        return moved

@@ -221,6 +221,8 @@ a:hover { color: var(--oy-accent-deep); }
 .oy-text-body { color: var(--oy-body-text) !important; }
 .oy-text-muted { color: var(--oy-muted) !important; }
 .oy-text-faint { color: var(--oy-faint) !important; }
+.oy-bulk-bar { background: var(--oy-surface); border-color: var(--oy-border) !important; position: sticky; top: 0; z-index: 20; }
+.oy-picked { outline: 3px solid var(--oy-accent); outline-offset: -3px; }
 .oy-text-soft { color: var(--oy-soft) !important; }
 .oy-text-placeholder { color: var(--oy-placeholder) !important; }
 .oy-interactive-muted { color: var(--oy-muted) !important; }
