@@ -3,6 +3,7 @@ from src.core.models import ApiCardSet
 from src.services.ygo_api import ApiCard, ygo_service
 from src.services.image_manager import image_manager
 from src.services.pricing_service import pricing_service
+from src.services.prices.cardtrader import lowest_for_card, shared_store
 from src.core.utils import transform_set_code, generate_variant_id, normalize_set_code, extract_language_code, LANGUAGE_COUNTRY_MAP
 from src.core.constants import CARD_CONDITIONS
 from typing import List, Optional, Dict, Set, Callable, Any
@@ -748,16 +749,17 @@ class SingleCardView:
                             with ui.element('div').classes('grid grid-cols-2 lg:grid-cols-4 gap-3 w-full'):
                                 tcg_price = '-'
                                 cm_price = '-'
-                                csi_price = '-'
+                                ct_price = '-'
                                 if card.card_prices:
                                     p = card.card_prices[0]
                                     if p.tcgplayer_price: tcg_price = f"${p.tcgplayer_price}"
                                     if p.cardmarket_price: cm_price = f"€{p.cardmarket_price}"
-                                    if p.coolstuffinc_price: csi_price = f"${p.coolstuffinc_price}"
 
                                 lbl_tcg = info_label('TCGPlayer', tcg_price, 'green-400')
                                 lbl_cm = info_label('CardMarket', cm_price, 'blue-400')
-                                lbl_csi = info_label('CoolStuffInc', csi_price, 'orange-400')
+                                ct_low = lowest_for_card(card.card_sets, shared_store())
+                                if ct_low is not None: ct_price = f"desde €{ct_low:.2f}"
+                                lbl_ct = info_label('CardTrader', ct_price, 'orange-400')
 
                                 lbl_set_price = info_label('Set Price', f"${set_price:.2f}" if set_price else "-", 'purple-400')
 

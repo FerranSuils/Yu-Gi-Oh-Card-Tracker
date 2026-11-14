@@ -26,12 +26,13 @@ def _latest_manual(manual: dict, card_id: str, printing_id: str) -> float | None
 
 def ygo_to_prices(db: list[dict], market: str, manual: dict) -> dict[str, PrintingPrice]:
     """Cardmarket is one price per card (YGOPRODeck) unless a printing was captured by hand;
-    TCGplayer has a price per printing."""
+    TCGplayer has a price per printing where YGOPRODeck knows it, else the card's price."""
     prices: dict[str, PrintingPrice] = {}
     for card in db:
         card_id = str(card.get('id'))
         card_prices = (card.get('card_prices') or [{}])[0] or {}
         per_card = to_price(card_prices.get('cardmarket_price'))
+        per_card_usd = to_price(card_prices.get('tcgplayer_price'))
         for card_set in card.get('card_sets') or []:
             printing_id = _printing_id(card_set)
             if market == 'cardmarket':
@@ -44,6 +45,9 @@ def ygo_to_prices(db: list[dict], market: str, manual: dict) -> dict[str, Printi
                 price = to_price(card_set.get('set_price'))
                 if price is not None:
                     prices[printing_id] = PrintingPrice(normal=PriceQuote(trend=price))
+                elif per_card_usd is not None:
+                    # YGOPRODeck leaves most printings at 0: use the card's own price rather than "worth nothing".
+                    prices[printing_id] = PrintingPrice(normal=PriceQuote(trend=per_card_usd), scope='card')
     return prices
 
 

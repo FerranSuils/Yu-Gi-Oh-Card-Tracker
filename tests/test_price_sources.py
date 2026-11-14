@@ -123,10 +123,12 @@ def test_ygo_cardmarket_is_per_card_unless_captured():
     assert ygo_to_prices(YGO_DB, 'cardmarket', {})['v-lob'].scope == 'card'
 
 
-def test_ygo_tcgplayer_uses_set_price_per_printing():
+def test_ygo_tcgplayer_uses_set_price_per_printing_and_the_card_price_when_a_printing_has_none():
+    # YGOPRODeck leaves most printings at 0: they must not show up as worth nothing.
     prices = ygo_to_prices(YGO_DB, 'tcgplayer', MANUAL)
-    assert set(prices) == {'v-lob'}
+    assert set(prices) == {'v-lob', 'SDK-001:Ultra Rare'}
     assert prices['v-lob'].normal.trend == 25.1 and prices['v-lob'].scope == 'printing'
+    assert prices['SDK-001:Ultra Rare'].normal.trend == 2.0 and prices['SDK-001:Ultra Rare'].scope == 'card'
 
 
 def test_pokemon_fetch_resumes_after_an_outage(tmp_path):

@@ -35,7 +35,11 @@ def account_roots(base: str = 'data') -> list[str]:
 
 
 def markets_in_use(roots: Iterable[str]) -> set[str]:
-    return {'cardmarket'} | {load_profile(root).price_market for root in roots}
+    from src.services.prices.registry import SOURCES
+
+    # CardTrader is a reference price for every account, downloaded whenever a token registered it.
+    extra = {'cardtrader'} if ('yugioh', 'cardtrader') in SOURCES else set()
+    return {'cardmarket'} | extra | {load_profile(root).price_market for root in roots}
 
 
 def _all_sources():

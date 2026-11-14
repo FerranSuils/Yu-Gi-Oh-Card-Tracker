@@ -9,5 +9,10 @@ if not SOURCES:
     for _source in (YugiohCardmarketSource(), YugiohTcgplayerSource(), MagicCardmarketSource(),
                     MagicTcgplayerSource(), PokemonCardmarketSource(), PokemonTcgplayerSource()):
         register(_source)
+    from src.services.prices.cardtrader import build_source as _cardtrader
+
+    _ct = _cardtrader()  # only with OPENYUGI_CARDTRADER_TOKEN
+    if _ct is not None:
+        register(_ct)
 
 __all__ = ['MARKETS', 'get_source', 'register', 'sources']
