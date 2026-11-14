@@ -547,7 +547,8 @@ class ScannerManager:
                                 "raw_image_path": temp_raw_path,
                                 "threshold": ambiguity_threshold,
                                 "art_threshold": art_threshold,
-                                "owner": task.owner
+                                "owner": task.owner,
+                                "filename": filename
                             }
                             self.lookup_queue.put(lookup_data)
 
@@ -564,7 +565,7 @@ class ScannerManager:
                         except OSError:
                             pass
 
-                        self._emit("scan_finished", {"success": True, "detected": bool(best_res or art_match)})
+                        self._emit("scan_finished", {"success": True, "detected": bool(best_res or art_match), "filename": filename})
 
                     else:
                         self._log_debug(f"Frame read failed for {filepath}")
@@ -572,7 +573,7 @@ class ScannerManager:
                         with self.queue_lock:
                              if self.scan_queue and self.scan_queue[0].id == task.id:
                                  self.scan_queue.pop(0)
-                        self._emit("scan_finished", {"success": False, "error": "Frame read failed"})
+                        self._emit("scan_finished", {"success": False, "error": "Frame read failed", "filename": filename})
 
                 except ScanAborted:
                     logger.info(f"Scan aborted for: {filename}")
@@ -589,7 +590,7 @@ class ScannerManager:
                     with self.queue_lock:
                         if self.scan_queue and self.scan_queue[0].id == task.id:
                             self.scan_queue.pop(0)
-                    self._emit("scan_finished", {"success": False, "error": str(e)})
+                    self._emit("scan_finished", {"success": False, "error": str(e), "filename": filename})
 
             except Exception as e:
                 logger.error(f"Worker Loop Fatal Error: {e}", exc_info=True)
@@ -808,6 +809,7 @@ class ScannerManager:
             result.first_edition = data.get('first_edition', False)
             result.raw_ocr = [ocr_res]
             result.raw_image_path = raw_path
+            result.source_file = data.get('filename')
 
             # Resolve warped image path for result
             if warped_url:

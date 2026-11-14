@@ -20,6 +20,7 @@ from src.services.scanner.manager import owner_name, recent_scans_path, report_f
 from src.core.account_scope import account_root
 from src.services.scanner import SCANNER_AVAILABLE
 from src.services.scanner import autocapture
+from src.services.scanner.batches import UploadBatch, retry_label
 from src.services.scanner.upload import (MAX_PDF_BYTES, finished_notice, is_pdf, queued_notice, safe_upload_name,
                                          upload_images)
 from src.core.persistence import persistence
@@ -371,6 +372,7 @@ const idleInterval = setInterval(() => {
     }
 }, 60000);
 const resetTimer = () => { idleTime = 0; };
+window.resetScannerIdle = resetTimer;
 ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
     document.addEventListener(evt, resetTimer);
 });
@@ -401,6 +403,7 @@ class ScanPage:
         self.start_btn = None
         self.stop_btn = None
         self.auto_timer = None
+        self.batches: list[UploadBatch] = []
         self.auto_seconds = autocapture.DEFAULT_INTERVAL
         self.is_active = False
         self.default_condition = "Near Mint"
@@ -1332,6 +1335,9 @@ class ScanPage:
                 storage_location=self.default_storage
             )
 
+            if added:
+                self.batch_found(result_dict.get('source_file'))
+
             # Post-update: Find the entry and set timestamp if added
             # This is slightly inefficient but necessary for sorting
             if added:
@@ -1403,6 +1409,10 @@ class ScanPage:
                             notice = finished_notice(event.data or {})
                             if notice:
                                 ui.notify(notice[1], type=notice[0], timeout=6000)
+                            data = event.data or {}
+                            if not data.get('success') or data.get('detected') is False:
+                                self.batch_lost(data.get('filename'),
+                                                data.get('error') or 'No se detectó ninguna carta')
 
                     if event.type == 'error':
                         ui.notify(event.data.get('message', 'Error'), type='negative')
@@ -1415,6 +1425,9 @@ class ScanPage:
             self.watchdog_counter += 1
             if self.watchdog_counter >= 10:
                 self.watchdog_counter = 0
+                if not scanner_service.scanner_manager.is_idle(self.owner):
+                    # Scanning a long PDF takes over an hour: working is not being away.
+                    ui.run_javascript('window.resetScannerIdle && window.resetScannerIdle()')
                 snapshot = report_for(scanner_service.scanner_manager.get_debug_snapshot(), self.owner)
                 if snapshot and snapshot != self.debug_report:
                     self.debug_report = snapshot
@@ -1428,6 +1441,7 @@ class ScanPage:
                 # Check for empty candidates (No Match)
                 if not res.get('candidates'):
                     ui.notify("No match found", type='negative')
+                    self.batch_lost(res.get('source_file'), 'No se encontró ninguna coincidencia')
 
                 elif res.get('ambiguity_flag'):
                     ui.notify("Scan Ambiguous: Please resolve.", type='warning', timeout=5000)
@@ -1440,6 +1454,7 @@ class ScanPage:
                 self.refresh_debug_ui() # Ensure final result is shown
 
             if scanner_service.scanner_manager.is_idle(self.owner) and self.event_queue.empty():
+                self.settle_batches()
                 if self.consumer_timer:
                     self.consumer_timer.cancel()
                     if self.consumer_timer in self._timers:
@@ -1694,6 +1709,71 @@ class ScanPage:
             logger.error(f"Error saving collection: {e}")
             ui.notify(f"Error saving collection: {e}", type='negative')
 
+    def batch_found(self, filename) -> None:
+        if filename:
+            for batch in self.batches:
+                batch.found(filename)
+            self.render_batches.refresh()
+
+    def batch_lost(self, filename, reason: str) -> None:
+        if filename:
+            for batch in self.batches:
+                batch.lost(filename, reason)
+            self.render_batches.refresh()
+
+    def settle_batches(self) -> None:
+        """Called when the scanner has gone quiet: a page still not read will not be."""
+        for batch in self.batches:
+            batch.settle()
+        self.render_batches.refresh()
+
+    async def retry_batch(self, batch: UploadBatch) -> None:
+        items = batch.retry_items()
+        if not items:
+            ui.notify('No quedan páginas que reintentar.', type='info')
+            return
+        if scanner_service.scanner_manager.is_paused():
+            scanner_service.scanner_manager.resume()
+        options = {
+            "tracks": [self.selected_track], "preprocessing": self.preprocessing_mode,
+            "art_match_yolo": self.art_match_yolo, "ambiguity_threshold": self.ambiguity_threshold,
+            "save_warped_scan": self.save_warped_scan, "save_raw_scan": self.save_raw_scan,
+            "art_match_threshold": self.art_match_threshold, "rotation": 0,
+        }
+        sent = 0
+        for number, image, extension in items:
+            name = safe_upload_name(batch.source, extension)
+            ok = await run.io_bound(scanner_service.scanner_manager.submit_scan, image, dict(options),
+                                    label=f"PDF p. {number}", filename=name, owner=self.owner)
+            batch.queued(number, name)
+            if ok:
+                sent += 1
+            else:
+                batch.lost(name, 'No se pudo poner en cola')
+        if not self.consumer_timer:
+            self.consumer_timer = ui.timer(0.1, self.event_consumer)
+            self._timers.append(self.consumer_timer)
+        self.render_batches.refresh()
+        ui.notify(f'Reintentando {sent} de {len(items)} páginas.', type='positive' if sent == len(items) else 'warning')
+
+    @ui.refreshable
+    def render_batches(self) -> None:
+        for batch in self.batches:
+            counts = batch.counts()
+            with ui.card().classes('w-full p-2 gap-1').props('flat bordered id=upload-batch'):
+                ui.label(batch.summary()).classes('text-sm font-semibold')
+                if counts['waiting']:
+                    ui.linear_progress(value=(counts['found'] + counts['missing']) / max(counts['total'], 1),
+                                       show_value=False).props('color=secondary')
+                missing = batch.missing()
+                if missing:
+                    pages = ', '.join(str(n) for n in missing[:40]) + (' …' if len(missing) > 40 else '')
+                    ui.label(f'Páginas que faltan: {pages}').classes('text-caption oy-text-faint')
+                    with ui.button(on_click=lambda b=batch: self.retry_batch(b)).props(
+                            'no-caps color=secondary id=retry-batch').classes('w-full'):
+                        ui.icon('refresh')
+                        ui.label(retry_label(len(missing))).classes('q-ml-xs')
+
     def set_auto_capture(self, on: bool) -> None:
         """Look at the camera every few seconds, so cards can be slid under it one after another."""
         if self.auto_timer is not None:
@@ -1792,12 +1872,26 @@ class ScanPage:
                 "rotation": 0 # Explicitly 0 for uploads
             }
             queued = 0
+            batch = None
+            if from_pdf:
+                batch = UploadBatch(original or 'PDF')
+                self.batches.append(batch)
+                for number, (image, extension) in enumerate(images, start=1):
+                    batch.add(number, image, extension)
             for number, (image, extension) in enumerate(images, start=1):
                 label = f"PDF p. {number}" if from_pdf else "Image Upload"
+                name = safe_upload_name(original, extension)
                 # Writing the file must not hold the UI loop: a PDF brings hundreds of pages.
                 if await run.io_bound(scanner_service.scanner_manager.submit_scan, image, dict(options),
-                                      label=label, filename=safe_upload_name(original, extension), owner=self.owner):
+                                      label=label, filename=name, owner=self.owner):
                     queued += 1
+                    if batch:
+                        batch.queued(number, name)
+                elif batch:
+                    batch.queued(number, name)
+                    batch.lost(name, 'No se pudo poner en cola')
+            if batch:
+                self.render_batches.refresh()
             if not self.consumer_timer:
                 self.consumer_timer = ui.timer(0.1, self.event_consumer)
                 self._timers.append(self.consumer_timer)
@@ -2301,6 +2395,7 @@ def scan_page():
                               multiple=True, auto_upload=True, max_file_size=MAX_PDF_BYTES) \
                         .props('accept="image/jpeg,image/png,image/webp,application/pdf" color=secondary flat bordered id=upload-scans') \
                         .classes('w-full')
+                    page.render_batches()
 
                 # RIGHT PANEL: Recent Scans Gallery
                 with ui.column().classes('w-1/2 h-full bg-dark border-l border-gray-800 flex flex-col overflow-hidden'):

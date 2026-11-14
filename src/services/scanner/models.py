@@ -46,6 +46,7 @@ class ScanResult(BaseModel):
     candidates: List[Dict[str, Any]] = [] # List of potential matches
     scan_image_path: Optional[str] = None # Path to the temporary warped image
     raw_image_path: Optional[str] = None # Path to the temporary raw image
+    source_file: Optional[str] = None # Name of the uploaded or captured file this card came from
     # For UI display
     raw_ocr: Optional[List[OCRResult]] = None
 
