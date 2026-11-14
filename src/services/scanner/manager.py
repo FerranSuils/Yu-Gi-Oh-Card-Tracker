@@ -850,6 +850,10 @@ class ScannerManager:
                                 path = await image_manager.ensure_image(result.card_id, img.image_url, high_res=True)
                                 result.image_path = path
 
+            # Visual hints (condition + rarity disambiguation). Suggestions only:
+            # any failure or low confidence leaves the defaults untouched.
+            self._apply_visual_suggestions(result, warped)
+
             # Fallback if no match but Set ID exists in OCR?
             if not result.set_code and ocr_res.set_id:
                 result.set_code = ocr_res.set_id
@@ -863,6 +867,34 @@ class ScannerManager:
 
         except Exception as e:
             logger.error(f"Error in process_pending_lookups: {e}", exc_info=True)
+
+    def _apply_visual_suggestions(self, result: 'ScanResult', warped) -> None:
+        """Fill the optional suggested_* fields of a ScanResult (never raises)."""
+        if warped is None:
+            return
+        try:
+            from src.services.scanner import grading
+            est = grading.estimate_condition(warped)
+            result.suggested_condition = grading.suggest_condition(est)
+            result.condition_label = est.label if result.suggested_condition else None
+            result.condition_confidence = est.confidence if result.suggested_condition else 0.0
+
+            # Only disambiguate between rarities already known for the identified print.
+            if result.candidates and result.set_code:
+                rarities = list(dict.fromkeys(
+                    c.get('rarity') for c in result.candidates
+                    if c.get('set_code') == result.set_code and c.get('rarity')))
+                if len(rarities) > 1:
+                    cues = grading.analyze_rarity_cues(warped)
+                    sug = grading.suggest_rarity(cues, rarities)
+                    result.rarity_hints = {"name_color": cues.name_color_scores,
+                                           "art_foil_prob": cues.art_foil_prob,
+                                           "card_foil_prob": cues.card_foil_prob}
+                    if sug:
+                        result.suggested_rarity = sug.rarity
+                        result.rarity_confidence = sug.confidence
+        except Exception as e:
+            logger.warning(f"Visual suggestions skipped: {e}")
 
     def _score_set_code_match(self, ocr_code: str, db_code: str) -> float:
         if not ocr_code or not db_code: return 0.0
