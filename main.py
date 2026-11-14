@@ -58,6 +58,14 @@ if os.environ.get('OPENYUGI_DISABLE_PRICE_SCHEDULER', '').lower() not in {'1', '
     from src.services.prices.scheduler import start_scheduler
     app.on_startup(start_scheduler)
 
+from src.services.billing.scheduler import start_scheduler as start_billing_scheduler
+app.on_startup(start_billing_scheduler)
+
+@ui.page('/facturacion')
+def facturacion(request: Request):
+    from src.ui.billing import billing_page
+    create_layout(lambda: billing_page(str(request.base_url)))
+
 @ui.page('/login')
 def login(request: Request):
     login_page(request.query_params.get('next'))

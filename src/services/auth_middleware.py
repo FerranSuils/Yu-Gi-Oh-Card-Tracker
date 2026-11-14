@@ -5,7 +5,10 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
+from src.core.account_scope import uses_private_storage
 from src.services.auth_service import AUTH_REVISION_KEY, AUTH_SESSION_KEY, AUTH_USER_KEY, auth_service
+from src.services.billing.guard import LOCKED_HOME, blocks
+from src.services.billing.service import billing_service
 
 
 PUBLIC_PATHS = {'/login', '/registro', '/login/callback', '/_nicegui_ws', '/api/v1/register', '/tpv/pagado', '/mapa', '/manifest.webmanifest', '/sw.js'}
@@ -46,6 +49,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             and session.get(AUTH_REVISION_KEY) == expected_revision
         )
         if authenticated:
+            if blocks(username, request.url.path, billing_service, operator=not uses_private_storage(username)):
+                # Unpaid account (trial over, or the yearly 2 EUR past due): only the billing page opens.
+                if request.url.path.startswith('/api/'):
+                    return JSONResponse({'detail': 'Payment required'}, status_code=402)
+                return RedirectResponse(LOCKED_HOME, status_code=303)
             return await call_next(request)
 
         if request.url.path.startswith('/api/'):

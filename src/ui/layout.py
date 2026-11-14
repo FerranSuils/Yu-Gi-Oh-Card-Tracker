@@ -137,6 +137,7 @@ def create_layout(content_function):
                         ui.label('Tema').classes('q-item__label')
                         theme_switch()
                     ui.separator()
+                    ui.menu_item('Mi plan', on_click=lambda: go('/facturacion'))
                     ui.menu_item('Salir', on_click=logout)
 
         with ui.row().classes('oy-modebar w-full items-center gap-6 px-4 lg:px-6 flex-wrap oy-desktop-only'):
