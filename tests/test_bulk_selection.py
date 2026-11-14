@@ -59,3 +59,17 @@ def test_the_collection_page_never_calls_a_bare_icon_because_locals_named_icon_s
     import re
     source = open('src/ui/collection.py', encoding='utf-8').read()
     assert not re.search(r'(?<![\w.])icon\(', source)
+
+
+def test_rarity_lookup_finds_the_printing_of_that_rarity_in_the_same_set_code():
+    from types import SimpleNamespace as NS
+    from src.ui.components.bulk_actions import rarity_lookup, rarities_for
+    card = NS(id=5, card_sets=[
+        NS(set_code='LOB-EN001', set_rarity='Ultra Rare', variant_id='v-ur', image_id=11),
+        NS(set_code='LOB-EN001', set_rarity='Secret Rare', variant_id='v-sc', image_id=None),
+        NS(set_code='SDK-001', set_rarity='Common', variant_id='v-c', image_id=12)])
+    lookup = rarity_lookup({5: card})
+    assert lookup(5, 'LOB-EN001', 'Secret Rare') == ('v-sc', None)
+    assert lookup(5, 'LOB-EN001', 'Common') is None
+    assert lookup(9, 'LOB-EN001', 'Secret Rare') is None
+    assert rarities_for(card, 'LOB-EN001') == {'Ultra Rare', 'Secret Rare'}

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from nicegui import run, ui
 
+from src.core.constants import CARD_CONDITIONS, RARITY_RANKING
 from src.core.models import StorageDefinition
+from src.core.utils import generate_variant_id
 from src.core.persistence import persistence
 from src.services.collection_editor import CollectionEditor
 from src.ui.icons import icon
@@ -129,4 +131,76 @@ def open_quantities(page) -> None:
             await page.bulk_commit(apply, 'Actualizadas {n} entradas.')
 
         _buttons(dialog, 'Guardar cantidades', confirm, icon_name='edit')
+    dialog.open()
+
+
+LANGUAGES = ['EN', 'ES', 'DE', 'FR', 'IT', 'PT', 'JP', 'KR', 'TC', 'SC']
+KEEP = '(No cambiar)'
+
+
+def rarities_for(api_card, set_code: str) -> set:
+    return {s.set_rarity for s in (api_card.card_sets or []) if s.set_code == set_code}
+
+
+def rarity_lookup(api_card_map: dict):
+    """lookup(card_id, set_code, rarity) -> (variant_id, image_id) of that printing, or None."""
+    def lookup(card_id, set_code, rarity):
+        api_card = api_card_map.get(card_id)
+        for card_set in (api_card.card_sets if api_card else None) or []:
+            if card_set.set_code == set_code and card_set.set_rarity == rarity:
+                variant_id = card_set.variant_id or generate_variant_id(card_id, set_code, rarity, card_set.image_id)
+                return variant_id, card_set.image_id
+        return None
+    return lookup
+
+
+def open_attributes(page) -> None:
+    """Condition, language, edition and rarity for every ticked card at once; each is optional."""
+    col = page.state['current_collection']
+    picked = CollectionEditor.select_entries(col, page.bulk.targets())
+    options = set()
+    for owner, variant, _ in picked:
+        api_card = page.api_card_map.get(owner.card_id)
+        if api_card:
+            options |= rarities_for(api_card, variant.set_code)
+    ranking = {name: i for i, name in enumerate(RARITY_RANKING)}
+    rarity_options = [KEEP] + sorted(options, key=lambda r: ranking.get(r, len(ranking)))
+    dialog, card = _dialog('Cambiar atributos', 'Elige solo lo que quieras cambiar en las cartas marcadas.')
+    with card:
+        condition = ui.select([KEEP] + list(CARD_CONDITIONS), value=KEEP, label='Estado').classes('w-full') \
+            .props('id=bulk-condition')
+        language = ui.select([KEEP] + LANGUAGES, value=KEEP, label='Idioma').classes('w-full') \
+            .props('id=bulk-language')
+        edition = ui.select([KEEP, '1st Edition', 'Unlimited'], value=KEEP, label='Edición').classes('w-full') \
+            .props('id=bulk-edition')
+        rarity = ui.select(rarity_options, value=KEEP, label='Rareza (solo las que existen en su set)') \
+            .classes('w-full').props('id=bulk-rarity')
+
+        async def confirm():
+            targets = page.bulk.targets()
+            wanted = (None if condition.value == KEEP else condition.value,
+                      None if language.value == KEEP else language.value,
+                      None if edition.value == KEEP else edition.value == '1st Edition',
+                      None if rarity.value == KEEP else rarity.value)
+            dialog.close()
+            if all(v is None for v in wanted):
+                ui.notify('No has elegido ningún cambio.', type='info')
+                return
+            lookup = rarity_lookup(page.api_card_map)
+            skipped = []
+
+            def apply(c):
+                total = CollectionEditor.bulk_set_attributes(c, targets, wanted[0], wanted[1], wanted[2])
+                if wanted[3] is not None:
+                    moved, left = CollectionEditor.bulk_set_rarity(c, targets, wanted[3], lookup)
+                    skipped.append(left)
+                    total = max(total, moved)
+                return total
+
+            await page.bulk_commit(apply, 'Cambiadas {n} cartas.')
+            if skipped and skipped[0]:
+                ui.notify(f'{skipped[0]} cartas no tienen esa rareza en su set y se han dejado como estaban.',
+                          type='warning')
+
+        _buttons(dialog, 'Aplicar', confirm, icon_name='edit')
     dialog.open()

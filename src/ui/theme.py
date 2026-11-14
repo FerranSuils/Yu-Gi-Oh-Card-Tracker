@@ -223,6 +223,7 @@ a:hover { color: var(--oy-accent-deep); }
 .oy-text-faint { color: var(--oy-faint) !important; }
 .oy-bulk-bar { background: var(--oy-surface); border-color: var(--oy-border) !important; position: sticky; top: 0; z-index: 20; }
 .oy-picked { outline: 3px solid var(--oy-accent); outline-offset: -3px; }
+.oy-modal .q-dialog__backdrop { background: rgba(20, 16, 12, 0.45); }
 .oy-text-soft { color: var(--oy-soft) !important; }
 .oy-text-placeholder { color: var(--oy-placeholder) !important; }
 .oy-interactive-muted { color: var(--oy-muted) !important; }

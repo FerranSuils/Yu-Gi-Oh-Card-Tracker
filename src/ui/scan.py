@@ -21,6 +21,7 @@ from src.core.account_scope import account_root
 from src.services.scanner import SCANNER_AVAILABLE
 from src.services.scanner import autocapture
 from src.services.scanner.batches import UploadBatch, retry_label
+from src.services.scanner.ambiguity_queue import AmbiguityQueue
 from src.services.scanner.upload import (MAX_PDF_BYTES, finished_notice, is_pdf, queued_notice, safe_upload_name,
                                          upload_images)
 from src.core.persistence import persistence
@@ -405,6 +406,7 @@ class ScanPage:
         self.stop_btn = None
         self.auto_timer = None
         self.batches: list[UploadBatch] = []
+        self.ambiguities = AmbiguityQueue()
         self.auto_seconds = autocapture.DEFAULT_INTERVAL
         self.is_active = False
         self.default_condition = "Near Mint"
@@ -1450,9 +1452,10 @@ class ScanPage:
                     self.batch_lost(res.get('source_file'), 'No se encontró ninguna coincidencia')
 
                 elif res.get('ambiguity_flag'):
-                    ui.notify("Scan Ambiguous: Please resolve.", type='warning', timeout=5000)
-                    dialog = AmbiguityDialog(res, self.on_card_confirmed)
-                    dialog.open()
+                    # Queued: a new result must never replace the dialog that is open.
+                    self.ambiguities.push(res)
+                    ui.notify(f"Carta ambigua: {self.ambiguities.pending()} por resolver "
+                              "(se abrirán una tras otra al acabar el escaneo).", type='warning', timeout=4000)
                 else:
                     ui.notify("Scan Successful!", type='positive', timeout=3000)
                     await self.on_card_confirmed(res)
@@ -1460,7 +1463,9 @@ class ScanPage:
                 self.refresh_debug_ui() # Ensure final result is shown
 
             if scanner_service.scanner_manager.is_idle(self.owner) and self.event_queue.empty():
-                self.settle_batches()
+                self.show_next_ambiguity()
+                if not self.ambiguities.pending():
+                    self.settle_batches()
                 if self.consumer_timer:
                     self.consumer_timer.cancel()
                     if self.consumer_timer in self._timers:
@@ -1714,6 +1719,23 @@ class ScanPage:
         except Exception as e:
             logger.error(f"Error saving collection: {e}")
             ui.notify(f"Error saving collection: {e}", type='negative')
+
+    def show_next_ambiguity(self) -> None:
+        """Opens the next queued ambiguity once the scanner is idle and no dialog is open."""
+        idle = scanner_service.scanner_manager.is_idle(self.owner) and self.event_queue.empty()
+        res = self.ambiguities.next_to_show(idle)
+        if res is None:
+            return
+        dialog = AmbiguityDialog(res, self.on_card_confirmed)
+        dialog.on('hide', self.ambiguity_closed)
+        dialog.open()
+
+    def ambiguity_closed(self, _event=None) -> None:
+        self.ambiguities.closed()
+        if self.ambiguities.pending():
+            ui.timer(0.3, self.show_next_ambiguity, once=True)
+        else:
+            self.settle_batches()
 
     def batch_found(self, filename) -> None:
         if filename:

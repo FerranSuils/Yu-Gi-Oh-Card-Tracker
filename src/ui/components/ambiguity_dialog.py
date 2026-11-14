@@ -10,6 +10,18 @@ from src.services.scanner import grading
 
 logger = logging.getLogger(__name__)
 
+
+def preview_url(image_id, card_images, exists=image_manager.image_exists) -> Optional[str]:
+    """The picture to show for an art: the downloaded file, else the online one (never an empty box)."""
+    if not image_id:
+        return None
+    if exists(image_id):
+        return f'/images/{image_id}.jpg'
+    for image in card_images or []:
+        if image.id == image_id and getattr(image, 'image_url', None):
+            return image.image_url
+    return f'https://images.ygoprodeck.com/images/cards/{image_id}.jpg'
+
 class AmbiguityDialog(ui.dialog):
     def __init__(self, scan_result: Dict[str, Any], on_confirm: Callable):
         super().__init__()
@@ -59,9 +71,11 @@ class AmbiguityDialog(ui.dialog):
         self.timer = ui.timer(0.1, self.load_full_data, once=True)
         self.on('close', lambda e: self.timer.cancel() if hasattr(self, 'timer') else None)
 
-        with self, ui.card().classes('w-[900px] h-[700px] flex flex-row p-4 gap-4'):
+        # Floats over the page: see-through blurred overlay, never a black screen.
+        self.classes('oy-modal').props('backdrop-filter="blur(4px)"')
+        with self, ui.card().classes('w-[900px] max-w-[95vw] h-[700px] max-h-[92vh] flex flex-row p-4 gap-4 overflow-auto'):
              # LEFT: Image Preview
-             with ui.column().classes('w-1/3 h-full items-center justify-center bg-black rounded'):
+             with ui.column().classes('w-1/3 h-full items-center justify-center rounded').style('background: var(--oy-bg)'):
                  self.preview_image = ui.image().classes('max-w-full max-h-full object-contain')
                  self.update_preview()
 
@@ -387,10 +401,8 @@ class AmbiguityDialog(ui.dialog):
         self.update_art_and_rarity_options(variants)
 
     def update_preview(self):
-        if self.selected_image_id:
-             self.preview_image.set_source(f"/images/{self.selected_image_id}.jpg")
-        else:
-             self.preview_image.set_source(None)
+        cards = getattr(getattr(self, 'full_card_data', None), 'card_images', None)
+        self.preview_image.set_source(preview_url(self.selected_image_id, cards))
 
     async def confirm(self):
         # Handle "Other" Set Code

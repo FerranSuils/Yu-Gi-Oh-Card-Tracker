@@ -1553,6 +1553,7 @@ class CollectionPage:
             ui.space()
             for label, name, handler, color in (
                 ('Cantidades', 'edit', lambda: bulk_actions.open_quantities(self), 'secondary'),
+                ('Atributos', 'tag', lambda: bulk_actions.open_attributes(self), 'secondary'),
                 ('Almacén', 'package-box', lambda: bulk_actions.open_storage(self), 'secondary'),
                 ('Mover a colección', 'arrow-right', lambda: bulk_actions.open_transfer(self), 'secondary'),
                 ('Eliminar', 'trash', lambda: bulk_actions.open_delete(self), 'negative'),

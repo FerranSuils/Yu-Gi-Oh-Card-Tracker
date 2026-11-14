@@ -95,3 +95,55 @@ def test_transfer_to_the_same_collection_does_nothing():
     col = _collection()
     assert CollectionEditor.transfer(col, col, [(1, None, None, None, None)]) == 0
     assert _total(col) == 10
+
+
+def test_changing_condition_language_and_edition_changes_every_selected_stack():
+    col = _collection()
+    changed = CollectionEditor.bulk_set_attributes(col, [(1, 'a1', None, None, None)], condition='Played',
+                                                   language='ES', first_edition=True)
+    assert changed == 3
+    entries = col.cards[0].variants[0].entries
+    assert sorted((e.condition, e.language, e.first_edition, e.quantity) for e in entries) == [
+        ('Played', 'ES', True, 1), ('Played', 'ES', True, 2)]
+
+
+def test_stacks_that_become_equal_in_the_same_place_are_merged():
+    col = _collection()
+    col.cards[1].variants[0].entries.append(_entry(1, cond='Played', place='Box A'))
+    CollectionEditor.bulk_set_attributes(col, [(2, 'b1', None, None, None)], condition='Played')
+    entries = col.cards[1].variants[0].entries
+    assert len(entries) == 1 and entries[0].quantity == 5
+
+
+def test_fields_left_as_none_are_not_touched():
+    col = _collection()
+    CollectionEditor.bulk_set_attributes(col, [(2, None, None, None, None)], condition='Played')
+    entry = col.cards[1].variants[0].entries[0]
+    assert (entry.condition, entry.language, entry.first_edition, entry.storage_location) == ('Played', 'EN', False, 'Box A')
+
+
+def test_changing_the_rarity_moves_the_copies_to_the_variant_of_that_rarity_and_creates_it():
+    col = _collection()
+    lookup = lambda card_id, set_code, rarity: ('v-new', None) if rarity == 'Secret Rare' else None
+    moved, skipped = CollectionEditor.bulk_set_rarity(col, [(2, None, None, None, None)], 'Secret Rare', lookup)
+    assert (moved, skipped) == (4, 0)
+    variants = {v.variant_id: v for v in col.cards[1].variants}
+    assert set(variants) == {'v-new'} and variants['v-new'].rarity == 'Secret Rare'
+    assert variants['v-new'].set_code == 'LOB-EN002' and variants['v-new'].entries[0].quantity == 4
+
+
+def test_cards_that_have_no_such_rarity_in_their_set_are_skipped_and_counted():
+    col = _collection()
+    moved, skipped = CollectionEditor.bulk_set_rarity(col, [(1, None, None, None, None)], 'Starlight Rare',
+                                                      lambda *a: None)
+    assert (moved, skipped) == (0, 6)
+    assert [v.variant_id for v in col.cards[0].variants] == ['a1', 'a2']
+
+
+def test_a_rarity_change_merges_into_a_variant_that_already_exists():
+    col = _collection()
+    col.cards[1].variants.append(CollectionVariant(variant_id='b2', set_code='LOB-EN002', rarity='Secret Rare',
+                                                   entries=[_entry(1, place='Box A')]))
+    CollectionEditor.bulk_set_rarity(col, [(2, 'b1', None, None, None)], 'Secret Rare', lambda *a: ('b2', None))
+    assert [v.variant_id for v in col.cards[1].variants] == ['b2']
+    assert col.cards[1].variants[0].entries[0].quantity == 5

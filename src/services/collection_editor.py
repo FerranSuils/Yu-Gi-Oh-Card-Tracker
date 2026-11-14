@@ -392,6 +392,60 @@ class CollectionEditor:
         return count
 
     @staticmethod
+    def bulk_set_attributes(collection: Collection, targets: List[BulkTarget], condition: Optional[str] = None,
+                            language: Optional[str] = None, first_edition: Optional[bool] = None) -> int:
+        """Gives every selected stack this condition / language / edition (None = leave as is).
+
+        Stacks that end up equal (same condition, language, edition and place) are merged.
+        Returns how many cards were affected.
+        """
+        picked = CollectionEditor.select_entries(collection, targets)
+        touched, count = {}, 0
+        for _, variant, entry in picked:
+            before = (entry.condition, entry.language, entry.first_edition)
+            if condition is not None:
+                entry.condition = condition
+            if language is not None:
+                entry.language = language
+            if first_edition is not None:
+                entry.first_edition = first_edition
+            if before != (entry.condition, entry.language, entry.first_edition):
+                count += entry.quantity
+            touched[id(variant)] = variant
+        for variant in touched.values():
+            CollectionEditor._merge_entries(variant)
+        return count
+
+    @staticmethod
+    def bulk_set_rarity(collection: Collection, targets: List[BulkTarget], rarity: str, lookup):
+        """Moves the selected copies to the printing of this rarity within the same set code.
+
+        ``lookup(card_id, set_code, rarity)`` returns ``(variant_id, image_id)`` of that printing, or None
+        when the card has no such rarity in that set: those copies stay as they are.
+        Returns (moved, skipped) copies.
+        """
+        moved = skipped = 0
+        for card, variant, entry in CollectionEditor.select_entries(collection, targets):
+            if variant.rarity == rarity:
+                continue
+            found = lookup(card.card_id, variant.set_code, rarity)
+            if not found:
+                skipped += entry.quantity
+                continue
+            variant_id, image_id = found
+            dest = next((v for v in card.variants if v.variant_id == variant_id), None)
+            if dest is None:
+                dest = CollectionVariant(variant_id=variant_id, set_code=variant.set_code, rarity=rarity,
+                                         image_id=image_id if image_id is not None else variant.image_id)
+                card.variants.append(dest)
+            dest.entries.append(copy.deepcopy(entry))
+            CollectionEditor._merge_entries(dest)
+            moved += entry.quantity
+            entry.quantity = 0
+        CollectionEditor._drop_empty(collection)
+        return moved, skipped
+
+    @staticmethod
     def set_entry_quantity(collection: Collection, card_id: int, variant_id: str, language: str, condition: str,
                            first_edition: bool, storage_location: Optional[str], quantity: int) -> bool:
         """Sets the number of one stack of cards; 0 removes it."""
