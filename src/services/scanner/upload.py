@@ -129,3 +129,7 @@ def queued_notice(queued: int, total: int, original: str | None, from_pdf: bool)
     if from_pdf:
         return f'En cola: {queued} cartas de {name}', 'positive'
     return f'En cola: {name}', 'positive'
+
+
+def limits_hint() -> str:
+    return f'Imágenes o PDF de hasta {MAX_PDF_BYTES // 2**20} MB y {MAX_PDF_PAGES} páginas.'

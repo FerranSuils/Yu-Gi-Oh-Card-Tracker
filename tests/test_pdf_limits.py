@@ -13,3 +13,7 @@ def test_the_web_server_lets_through_what_the_app_accepts():
     config = open('deploy/iis/web.config', encoding='utf-8').read()
     limit = int(re.search(r'maxAllowedContentLength="(\d+)"', config).group(1))
     assert limit >= upload.MAX_PDF_BYTES
+
+
+def test_the_limit_is_worded_for_the_person():
+    assert upload.limits_hint() == 'Imágenes o PDF de hasta 300 MB y 500 páginas.'

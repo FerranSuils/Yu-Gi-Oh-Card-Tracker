@@ -22,7 +22,7 @@ from src.services.scanner import SCANNER_AVAILABLE
 from src.services.scanner import autocapture
 from src.services.scanner.batches import UploadBatch, retry_label
 from src.services.scanner.ambiguity_queue import AmbiguityQueue
-from src.services.scanner.upload import (MAX_PDF_BYTES, finished_notice, is_pdf, queued_notice, safe_upload_name,
+from src.services.scanner.upload import (MAX_PDF_BYTES, limits_hint, finished_notice, is_pdf, queued_notice, safe_upload_name,
                                          upload_images)
 from src.core.persistence import persistence
 from src.core.models import Collection, CollectionCard, CollectionVariant, CollectionEntry, ApiCard
@@ -2423,6 +2423,7 @@ def scan_page():
                               multiple=True, auto_upload=True, max_file_size=MAX_PDF_BYTES) \
                         .props('accept="image/jpeg,image/png,image/webp,application/pdf" color=secondary flat bordered id=upload-scans') \
                         .classes('w-full')
+                    ui.label(limits_hint()).classes('text-xs opacity-60').props('id=upload-limits')
                     page.render_batches()
 
                 # RIGHT PANEL: Recent Scans Gallery
