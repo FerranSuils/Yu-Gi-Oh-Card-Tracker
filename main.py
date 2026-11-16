@@ -237,9 +237,9 @@ if __name__ == "__main__":
         host=os.environ.get('OPENYUGI_HOST', '0.0.0.0'),
         port=int(os.environ.get('OPENYUGI_PORT', '8080')),
         reload=False,
-        # Scans hold the interpreter for seconds; the default 3 s made the socket ping
-        # expire mid-scan, deleting the client and reloading the page.
-        reconnect_timeout=30.0,
+        # The server can stall 20 s or more (IIS logs show it); the default 3 s made the socket ping
+        # expire, deleting the client and reloading the page. 120 s covers those stalls.
+        reconnect_timeout=120.0,
         # On Windows uvicorn uses the Proactor loop, whose accept loop closes the
         # listening socket after a transient WinError 64. The process then stays
         # alive but stops accepting connections, and IIS answers 502 everywhere.

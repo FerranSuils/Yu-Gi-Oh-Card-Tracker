@@ -21,4 +21,4 @@ def test_pages_survive_long_event_loop_stalls():
     # 3 s reconnect timeout the socket ping (2 s) expires mid-scan, the client is
     # deleted and the scan page reloads while the PDF is still being processed.
     source = Path('main.py').read_text(encoding='utf-8')
-    assert 'reconnect_timeout=30.0,' in source
+    assert 'reconnect_timeout=120.0,' in source
