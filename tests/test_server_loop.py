@@ -22,3 +22,8 @@ def test_pages_survive_long_event_loop_stalls():
     # deleted and the scan page reloads while the PDF is still being processed.
     source = Path('main.py').read_text(encoding='utf-8')
     assert 'reconnect_timeout=120.0,' in source
+
+
+def test_the_server_watches_its_own_event_loop_for_stalls():
+    source = Path('main.py').read_text(encoding='utf-8')
+    assert 'LoopWatchdog' in source and 'app.on_startup(start_loop_watchdog)' in source

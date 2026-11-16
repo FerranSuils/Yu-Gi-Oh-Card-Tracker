@@ -62,6 +62,16 @@ if os.environ.get('OPENYUGI_DISABLE_PRICE_SCHEDULER', '').lower() not in {'1', '
 from src.services.billing.scheduler import start_scheduler as start_billing_scheduler
 app.on_startup(start_billing_scheduler)
 
+
+async def start_loop_watchdog():
+    # Logs the stacks of all threads whenever the loop stops answering for 5 s or more.
+    from src.services.loop_watchdog import LoopWatchdog
+    import asyncio
+    LoopWatchdog(asyncio.get_running_loop()).start()
+
+
+app.on_startup(start_loop_watchdog)
+
 @ui.page('/facturacion')
 def facturacion(request: Request):
     from src.ui.billing import billing_page
