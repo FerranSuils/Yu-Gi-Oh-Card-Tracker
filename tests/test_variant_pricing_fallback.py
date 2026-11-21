@@ -118,9 +118,10 @@ def test_default_image_fallback_when_image_id_is_missing_uses_daily_price(monkey
     assert price == 9.99
 
 
-def test_set_price_fallback_when_no_daily_pricing(monkeypatch):
+def test_set_price_fallback_when_no_daily_pricing_and_no_cardmarket_price(monkeypatch):
     monkeypatch.setattr(collection.pricing_service, "daily_pricing", {})
     card = make_card(
+        cardmarket_price="0.00",
         card_sets=[
             ApiCardSet(
                 variant_id=generate_variant_id(123, "LOB-EN001", "Ultra Rare", 100),
@@ -166,3 +167,34 @@ def test_generic_card_price_fallback_when_variant_and_set_price_miss(monkeypatch
     )
 
     assert price == 1.23
+
+
+def beyond_the_brave_set(set_price):
+    return ApiCardSet(
+        variant_id=generate_variant_id(123, "BETB-EN095", "Common", 100),
+        set_name="Beyond the Brave",
+        set_code="BETB-EN095",
+        set_rarity="Common",
+        set_price=set_price,
+        image_id=None,
+    )
+
+
+def test_a_zero_set_price_does_not_hide_the_cardmarket_price(monkeypatch):
+    # YGOPRODeck leaves most printings at "0.00": that is "unknown", not "worth nothing".
+    monkeypatch.setattr(collection.pricing_service, "daily_pricing", {})
+    card = make_card(card_sets=[beyond_the_brave_set("0.00")], cardmarket_price="0.11")
+
+    price = collection.get_display_price_for_variant(card, set_code="BETB-EN095", rarity="Common")
+
+    assert price == 0.11
+
+
+def test_the_cardmarket_price_wins_over_the_tcgplayer_set_price(monkeypatch):
+    # set_price is TCGplayer USD; the tile and the Value metric are shown in Cardmarket EUR.
+    monkeypatch.setattr(collection.pricing_service, "daily_pricing", {})
+    card = make_card(card_sets=[beyond_the_brave_set("4.56")], cardmarket_price="0.11")
+
+    price = collection.get_display_price_for_variant(card, set_code="BETB-EN095", rarity="Common")
+
+    assert price == 0.11

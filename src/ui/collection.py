@@ -6,6 +6,7 @@ from src.core.models import Collection, CollectionCard, CollectionVariant, Colle
 from src.services.ygo_api import ygo_service, ApiCard
 from src.services.image_manager import image_manager
 from src.core.config import config_manager
+from src.core.pricing_models import to_price
 from src.core.utils import transform_set_code, generate_variant_id, normalize_set_code, LANGUAGE_COUNTRY_MAP, REGION_TO_LANGUAGE_MAP, is_set_code_compatible, extract_language_code
 from src.ui.components.filter_pane import FilterPane
 from src.ui.components.single_card_view import SingleCardView
@@ -133,19 +134,18 @@ def get_display_price_for_variant(card: ApiCard, variant_id: Optional[str] = Non
         except Exception:
             pass
 
-    # 2. Fallback to set_price from matching set
-    if matched_set and matched_set.set_price:
-        try:
-            return float(matched_set.set_price)
-        except Exception:
-            pass
+    # 2. The card's Cardmarket price: same source as the «Valor de mercado» bar.
+    # A price of 0 means "unknown" in YGOPRODeck, never "worth nothing".
+    if card.card_prices:
+        value = to_price(card.card_prices[0].cardmarket_price)
+        if value:
+            return value
 
-    # 3. Fallback to general cardmarket_price on card
-    if card.card_prices and card.card_prices[0].cardmarket_price:
-        try:
-            return float(card.card_prices[0].cardmarket_price)
-        except Exception:
-            pass
+    # 3. Last resort: the printing's set_price (TCGplayer), when it is known.
+    if matched_set:
+        value = to_price(matched_set.set_price)
+        if value:
+            return value
 
     return price
 
