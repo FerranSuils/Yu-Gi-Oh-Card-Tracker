@@ -852,7 +852,7 @@ class ScannerManager:
 
             # Visual hints (condition + rarity disambiguation). Suggestions only:
             # any failure or low confidence leaves the defaults untouched.
-            self._apply_visual_suggestions(result, warped)
+            await asyncio.to_thread(self._apply_visual_suggestions, result, warped)
 
             # Fallback if no match but Set ID exists in OCR?
             if not result.set_code and ocr_res.set_id:
@@ -921,7 +921,12 @@ class ScannerManager:
         Returns dict with 'ambiguity' (bool) and 'candidates' (List).
         """
         cards = await ygo_service.load_card_database("en") # TODO: Optimize language loading?
+        # Scoring walks the whole card database in pure Python. On the event loop it froze every
+        # page for as long as it ran (22 s per card while the OCR thread was busy).
+        return await asyncio.to_thread(self._match_cards, cards, ocr_res, art_match, threshold, art_threshold)
 
+    def _match_cards(self, cards, ocr_res: 'OCRResult', art_match: Dict, threshold: float,
+                     art_threshold: float) -> Dict[str, Any]:
         candidates = []
 
         # Helper to normalize
