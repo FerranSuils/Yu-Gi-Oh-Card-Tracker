@@ -57,6 +57,24 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Region letters as printed on the cards. Spanish is SP, not ES.
+PRINTED_REGIONS = ['EN', 'DE', 'FR', 'IT', 'SP', 'PT', 'JP', 'KR', 'AE']
+
+
+def localized_codes(en_code: str) -> set:
+    """The same printing in every other language: SR10-EN033 -> SR10-SP033, SR10-DE033..."""
+    m = re.match(r'^([A-Z0-9]+)-([A-Z]+)(\d+)$', en_code)
+    if not m:
+        return set()
+    prefix, region, number = m.groups()
+    if len(region) == 2:
+        regions = PRINTED_REGIONS
+    elif len(region) == 1:  # old one-letter system: E, G, F, I, S, P, J, K
+        regions = LANGUAGE_TO_LEGACY_REGION_MAP.values()
+    else:
+        return set()
+    return {f"{prefix}-{r}{number}" for r in regions if r != region}
+
 class CardScanner:
     def __init__(self):
         self.width = 600
@@ -135,7 +153,7 @@ class CardScanner:
 
             # Helper to generate localized codes
             # Standard 2-letter regions
-            supported_2_letter = ['EN', 'DE', 'FR', 'IT', 'ES', 'PT', 'JP', 'KR', 'AE']
+            supported_2_letter = PRINTED_REGIONS
 
             files = [f for f in os.listdir(db_dir) if f.startswith("card_db") and f.endswith(".json")]
 
@@ -177,29 +195,9 @@ class CardScanner:
         except Exception as e:
             logger.error(f"Failed to load validation data: {e}")
 
-    def _generate_localized_codes(self, en_code: str, supported_2_letter: List[str]):
-        """Generates localized set codes based on English code format."""
-        # Regex to parse: Prefix-RegionNumber
-        m = re.match(r'^([A-Z0-9]+)-([A-Z]+)(\d+)$', en_code)
-        if not m: return
-
-        prefix, region, number = m.groups()
-
-        # Logic:
-        # If region is 2 letters (e.g. EN) -> Generate all supported 2-letter codes
-        # If region is 1 letter (e.g. E) -> Generate all supported 1-letter codes via mapping
-
-        if len(region) == 2:
-            for lang in supported_2_letter:
-                if lang != region:
-                    self.valid_set_codes.add(f"{prefix}-{lang}{number}")
-
-        elif len(region) == 1:
-            # Find which language this legacy code belongs to (usually E=EN)
-            # Use LANGUAGE_TO_LEGACY_REGION_MAP values to find other legacy codes
-            for lang_code, legacy_char in LANGUAGE_TO_LEGACY_REGION_MAP.items():
-                if legacy_char != region:
-                    self.valid_set_codes.add(f"{prefix}-{legacy_char}{number}")
+    def _generate_localized_codes(self, en_code: str, supported_2_letter: List[str] = None):
+        """Adds the set code of every other language for an English code."""
+        self.valid_set_codes.update(localized_codes(en_code))
 
     def get_easyocr(self):
         if self.easyocr_reader is None:

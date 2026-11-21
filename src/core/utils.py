@@ -14,7 +14,9 @@ REGION_TO_LANGUAGE_MAP = {
     'P': 'PT',
     'J': 'JP',
     'K': 'KR',
+    'A': 'EN', # Australian English (old one-letter system)
     'AE': 'EN', # Asian English
+    'SP': 'ES', # Spanish cards are printed with SP (SR10-SP033), never ES
     'TC': 'ZH',
     'SC': 'ZH',
     # Standard codes map to themselves
@@ -40,6 +42,11 @@ LANGUAGE_TO_LEGACY_REGION_MAP = {
     'PT': 'P',
     'JP': 'J',
     'KR': 'K'
+}
+
+# Region letters printed on the card when they differ from our language code.
+LANGUAGE_TO_REGION_MAP = {
+    'ES': 'SP',
 }
 
 # Mapping of Language Codes to Emoji Flags
@@ -141,7 +148,7 @@ def transform_set_code(set_code: str, language: str) -> str:
         prefix, region, suffix = parsed
 
         if region:
-            new_region_code = lang_code
+            new_region_code = LANGUAGE_TO_REGION_MAP.get(lang_code, lang_code)
 
             # Check if original was 1-letter and in our map
             if len(region) == 1:
