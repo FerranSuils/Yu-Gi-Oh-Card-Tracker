@@ -92,3 +92,23 @@ def test_lookup_results_stay_out_of_another_accounts_live_report(manager):
     assert [(event.type, event.data['owner']) for event in seen] == [('step_complete', 'ana'), ('result_ready', 'ana')]
     manager._publish_match([{'name': 'Carta de Bea'}], 'bea', {'set_code': 'BEA-001', 'ambiguous': False})
     assert manager.debug_state.match_candidates == [{'name': 'Carta de Bea'}]
+
+
+def test_clearing_the_queue_removes_only_the_accounts_own_scans(manager):
+    for name in ('a1.jpg', 'a2.jpg', 'a3.jpg'):
+        manager.submit_scan(b'a', {}, filename=name, owner='ana')
+    manager.submit_scan(b'b', {}, filename='bea.jpg', owner='bea')
+    files = [request.filepath for request in manager.scan_queue if request.owner == 'ana']
+
+    assert manager.clear_scan_requests('ana') == 3
+
+    assert manager.get_queue_snapshot('ana') == []
+    assert [item['filename'] for item in manager.get_queue_snapshot('bea')] == ['bea.jpg']
+    assert not any(os.path.exists(path) for path in files)
+    assert manager.clear_scan_requests('ana') == 0
+
+
+def test_the_scan_queue_has_a_button_to_clear_it_with_confirmation():
+    source = open('src/ui/scan.py', encoding='utf-8').read()
+    assert "'Vaciar cola'" in source and 'clear_scan_requests(self.owner)' in source
+    assert '¿Quitar' in source

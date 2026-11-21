@@ -21,7 +21,8 @@ from src.core.account_scope import account_root
 from src.services.scanner import SCANNER_AVAILABLE
 from src.services.scanner import autocapture
 from src.services.scanner.batches import UploadBatch, retry_label
-from src.services.scanner.ambiguity_queue import AmbiguityQueue
+from src.services.scanner.ambiguity_queue import queue_for
+from src.ui.icons import icon
 from src.services.scanner.upload import (MAX_PDF_BYTES, limits_hint, finished_notice, is_pdf, queued_notice, safe_upload_name,
                                          upload_images)
 from src.core.persistence import persistence
@@ -406,7 +407,9 @@ class ScanPage:
         self.stop_btn = None
         self.auto_timer = None
         self.batches: list[UploadBatch] = []
-        self.ambiguities = AmbiguityQueue()
+        # The account's queue, not the page's: it survives leaving the page or a lost connection.
+        self.ambiguities = queue_for(self.owner)
+        self.ambiguities.reattach()
         self.auto_seconds = autocapture.DEFAULT_INTERVAL
         self.is_active = False
         self.default_condition = "Near Mint"
@@ -2169,6 +2172,11 @@ class ScanPage:
              with ui.row().classes('w-full bg-gray-800 p-2 items-center'):
                  ui.icon('list', color='secondary')
                  ui.label(f"Scan Queue ({len(queue_items)})").classes('font-bold')
+                 if queue_items:
+                     ui.space()
+                     with ui.button(color='negative', on_click=self.confirm_clear_queue)                              .props('flat dense no-caps size=sm id=clear-scan-queue'):
+                         icon('trash', 16)
+                         ui.label('Vaciar cola').classes('q-ml-xs')
 
              if not queue_items:
                  ui.label("Queue is empty.").classes('p-4 text-gray-500 italic')
@@ -2181,6 +2189,22 @@ class ScanPage:
                                  ui.label(time.strftime("%H:%M:%S", time.localtime(item['timestamp']))).classes('text-xs text-gray-400')
                              ui.button(icon='delete', color='negative',
                                        on_click=lambda rid=item['id']: self.delete_queue_item(rid)).props('flat size=sm')
+
+    async def confirm_clear_queue(self):
+        count = len(scanner_service.scanner_manager.get_queue_snapshot(self.owner))
+        if not count:
+            return
+        with ui.dialog() as ask, ui.card():
+            ui.label(f'¿Quitar los {count} escaneos de la cola?')
+            ui.label('Las cartas ya reconocidas no se tocan.').classes('text-sm opacity-70')
+            with ui.row().classes('w-full justify-end'):
+                ui.button('Cancelar', on_click=lambda: ask.submit(False)).props('flat no-caps')
+                ui.button('Vaciar cola', color='negative', on_click=lambda: ask.submit(True)).props('no-caps')
+        if not await ask:
+            return
+        removed = scanner_service.scanner_manager.clear_scan_requests(self.owner)
+        ui.notify(f'{removed} escaneos quitados de la cola.')
+        self.render_scan_queue.refresh()
 
     def delete_queue_item(self, index):
         scanner_service.scanner_manager.remove_scan_request(index, self.owner)

@@ -270,6 +270,26 @@ class ScannerManager:
         self._emit("status_update", {"queue_len": remaining})
         return True
 
+    def clear_scan_requests(self, owner: Optional[str] = None) -> int:
+        """Drops every queued scan of the asking account. Returns how many were removed."""
+        if owner is None:
+            owner = owner_name()
+        with self.queue_lock:
+            removed = [req for req in self.scan_queue if req.owner == owner]
+            self.scan_queue[:] = [req for req in self.scan_queue if req.owner != owner]
+            remaining = len(self.scan_queue)
+        if not removed:
+            return 0
+        for request in removed:
+            if request.filepath and os.path.exists(request.filepath):
+                try:
+                    os.remove(request.filepath)
+                except OSError:
+                    pass
+        self._log_debug(f"Removed {len(removed)} items from queue")
+        self._emit("status_update", {"queue_len": remaining})
+        return len(removed)
+
     def get_debug_snapshot(self) -> Dict[str, Any]:
         with self.queue_lock:
             if self.debug_state:

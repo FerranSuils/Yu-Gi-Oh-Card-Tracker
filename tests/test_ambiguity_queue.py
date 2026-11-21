@@ -51,3 +51,24 @@ def test_the_scan_page_queues_ambiguities_and_opens_the_next_when_one_closes():
     assert 'self.ambiguities.push(res)' in source
     assert "dialog.on('hide', self.ambiguity_closed)" in source
     assert source.count('AmbiguityDialog(res') == 1  # only the queue opens dialogs
+
+
+def test_pending_ambiguities_survive_leaving_the_scan_page():
+    from src.services.scanner.ambiguity_queue import queue_for
+
+    first_visit = queue_for('ana-survive')
+    first_visit.push(_res('a'))
+    first_visit.push(_res('b'))
+    first_visit.next_to_show(scanner_idle=True)  # 'a' is on screen when the connection drops
+
+    second_visit = queue_for('ana-survive')
+    second_visit.reattach()
+    assert second_visit.pending() == 2  # the one that was on screen is not lost either
+    assert second_visit.next_to_show(scanner_idle=True)['candidates'][0]['name'] == 'a'
+    assert queue_for('bea-survive').pending() == 0  # each account has its own
+
+
+def test_the_scan_page_uses_the_accounts_own_lasting_queue():
+    source = open('src/ui/scan.py', encoding='utf-8').read()
+    assert 'self.ambiguities = queue_for(self.owner)' in source
+    assert 'self.ambiguities.reattach()' in source
